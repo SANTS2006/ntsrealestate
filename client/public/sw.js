@@ -1,7 +1,7 @@
 // Service worker: makes the app installable and lets the shell open offline.
 // It never caches the API, chat sockets or anything authenticated — only the
 // static app files — so a signed-out device can never see someone's data.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = `shell-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;
 const OFFLINE_URL = '/offline.html';

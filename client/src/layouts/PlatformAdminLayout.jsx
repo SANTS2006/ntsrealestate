@@ -55,7 +55,7 @@ function PlatformShell() {
   const brand = (onClose) => (
     <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="flex shrink-0 items-center justify-center rounded-lg bg-white px-1.5 py-0.5 ring-1 ring-slate-200">
+        <span className="flex shrink-0 items-center justify-center rounded-xl bg-white px-2 py-1 ring-1 ring-slate-200">
           <img src="/logo-nts.png" alt="NTS Digital Solutions" className="h-8 w-auto" />
         </span>
         <div className="min-w-0">

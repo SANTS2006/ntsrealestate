@@ -17,7 +17,7 @@ export function Logo({ size = 36, className }) {
   if (errored || !branding.logoUrl) {
     return (
       <div
-        className={clsx('flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-accent-600 text-white', className)}
+        className={clsx('flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-accent-600 text-white', className)}
         style={{ width: size, height: size }}
       >
         <Building2 size={Math.round(size * 0.55)} aria-hidden="true" />
@@ -31,7 +31,7 @@ export function Logo({ size = 36, className }) {
       alt={branding.name}
       width={size}
       height={size}
-      className={clsx('shrink-0 rounded-lg object-contain', className)}
+      className={clsx('shrink-0 rounded-xl object-contain', className)}
       onError={() => setErrored(true)}
     />
   );

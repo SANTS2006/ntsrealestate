@@ -75,17 +75,53 @@ export function BrandingProvider({ children }) {
   // organization applies.
   const logoUrl = branding?.logoUrl;
   useEffect(() => {
-    if (!logoUrl) return;
-    for (const rel of ['icon', 'apple-touch-icon']) {
+    if (!logoUrl) return undefined;
+    const setIcon = (rel, href, type) => {
       let link = document.querySelector(`link[rel="${rel}"]`);
       if (!link) {
         link = document.createElement('link');
         link.rel = rel;
         document.head.appendChild(link);
       }
-      link.removeAttribute('type');
-      link.href = logoUrl;
+      if (type) link.type = type; else link.removeAttribute('type');
+      link.href = href;
+    };
+    setIcon('apple-touch-icon', logoUrl);
+    // The tab icon gets rounded corners on all four sides: the platform's own
+    // is a ready-made rounded PNG; an organization's logo is drawn onto a
+    // rounded square (falling back to the plain logo if the browser will not
+    // let us read the image).
+    if (logoUrl === PLATFORM_BRANDING.logoUrl) {
+      setIcon('icon', '/favicon.png', 'image/png');
+      return undefined;
     }
+    setIcon('icon', logoUrl);
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const size = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const r = size * 0.225;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, size, size, r);
+        ctx.clip();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+        const pad = size * 0.08;
+        const scale = Math.min((size - pad * 2) / img.width, (size - pad * 2) / img.height);
+        ctx.drawImage(img, (size - img.width * scale) / 2, (size - img.height * scale) / 2, img.width * scale, img.height * scale);
+        setIcon('icon', canvas.toDataURL('image/png'), 'image/png');
+      } catch {
+        // cross-origin image: keep the plain logo
+      }
+    };
+    img.src = logoUrl;
+    return () => { cancelled = true; };
   }, [logoUrl]);
 
   const value = useMemo(

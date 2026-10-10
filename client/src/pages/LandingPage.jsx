@@ -14,7 +14,7 @@ function CompanyTile({ company }) {
       className="group flex w-24 flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
     >
       {company.logoUrl && !broken ? (
-        <img src={company.logoUrl} alt="" width={36} height={36} className="h-9 w-9 rounded-lg object-contain" onError={() => setBroken(true)} />
+        <img src={company.logoUrl} alt="" width={36} height={36} className="h-9 w-9 rounded-xl object-contain" onError={() => setBroken(true)} />
       ) : (
         <span className="flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: company.primaryColor }}>
           {initials}
