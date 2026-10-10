@@ -15,9 +15,9 @@ function NavItemLink({ to, children, onNavigate }) {
       onClick={onNavigate}
       className={({ isActive }) =>
         clsx(
-          'block rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+          'block rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all',
           isActive
-            ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-400'
+            ? 'bg-gradient-to-r from-brand-600 to-accent-500 text-white shadow-lg shadow-brand-600/25'
             : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
         )
       }
@@ -36,7 +36,7 @@ function NavGroup({ item, children, onNavigate }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        className="flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <Icon size={17} aria-hidden="true" />
         <span className="flex-1 text-left">{item.label}</span>
@@ -66,10 +66,13 @@ function NavGroup({ item, children, onNavigate }) {
 function BrandHeader({ onClose }) {
   const { branding } = useBranding();
   return (
-    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
-      <div className="flex min-w-0 items-center gap-2">
-        <Logo size={28} />
-        <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{branding.name}</span>
+    <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
+      <div className="flex min-w-0 items-center gap-3">
+        <Logo size={40} />
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold leading-tight text-slate-900 dark:text-slate-100">NTS RealEstate</p>
+          {branding.name && branding.name !== 'NTS Real Estate System' && <p className="truncate text-xs leading-tight text-slate-500 dark:text-slate-400">{branding.name}</p>}
+        </div>
       </div>
       {onClose && (
         <button
@@ -93,7 +96,7 @@ export function Sidebar({ mobileOpen, onClose }) {
   const visibleSections = NAV_SECTIONS.filter((item) => isNavItemVisible(item, roles));
 
   const nav = (onNavigate) => (
-    <nav aria-label="Primary" className="custom-scrollbar flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+    <nav aria-label="Primary" className="custom-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto p-3">
       {visibleSections.map((item) =>
         item.children ? (
           <NavGroup key={item.label} item={item} children={visibleChildren(item, roles)} onNavigate={onNavigate} />

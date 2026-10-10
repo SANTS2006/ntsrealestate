@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, Bell, LogOut, ChevronDown, Check, Repeat } from 'lucide-react';
+import clsx from 'clsx';
+import { Menu, Bell, LogOut, ChevronDown, Check, Repeat, Settings } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle.jsx';
 import { WebsiteLink } from '../ui/WebsiteLink.jsx';
 import { UserAvatar } from '../ui/UserAvatar.jsx';
 import { Logo } from '../ui/Logo.jsx';
-import { Button } from '../ui/Button.jsx';
 import { signOutWithNotice } from '../ui/SignOutOverlay.jsx';
 import { useAuth, getLoginPath } from '../../contexts/AuthContext.jsx';
 import { useOptionalChat } from '../../contexts/ChatContext.jsx';
@@ -71,7 +71,7 @@ export function Topbar({ onMenuClick }) {
   };
 
   return (
-    <header className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
+    <header className="relative z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center gap-2 lg:hidden">
         <button
           type="button"
@@ -81,10 +81,11 @@ export function Topbar({ onMenuClick }) {
         >
           <Menu size={20} aria-hidden="true" />
         </button>
-        <Logo size={28} />
+        <Logo size={32} />
+        <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">NTS Real Estate System</span>
       </div>
 
-      <div className="hidden lg:block" />
+      <p className="hidden text-base font-semibold text-slate-900 dark:text-slate-100 lg:block">NTS Real Estate System</p>
 
       <div className="flex items-center gap-2">
         <WebsiteLink />
@@ -111,20 +112,25 @@ export function Topbar({ onMenuClick }) {
             aria-haspopup="menu"
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            <UserAvatar user={user} size={28} className="text-xs" refreshKey={avatarVersion} />
-            <span className="hidden text-sm font-medium text-slate-700 dark:text-slate-200 sm:inline">
-              {user?.firstName} {user?.lastName}
+            <span className="relative shrink-0">
+              <UserAvatar user={user} size={36} className="text-xs" refreshKey={avatarVersion} />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" aria-hidden="true" />
             </span>
-            <ChevronDown size={14} className="text-slate-400" aria-hidden="true" />
+            <span className="hidden min-w-0 text-left sm:block">
+              <span className="block truncate text-sm font-semibold leading-tight text-slate-900 dark:text-slate-100">{user?.firstName} {user?.lastName}</span>
+              <span className="block truncate text-xs capitalize leading-tight text-slate-500 dark:text-slate-400">{(user?.roles ?? []).join(', ').replace(/_/g, ' ')}</span>
+            </span>
+            <ChevronDown size={14} className={clsx('text-slate-400 transition-transform', menuOpen && 'rotate-180')} aria-hidden="true" />
           </button>
 
           {menuOpen && (
             <div
               role="menu"
-              className="absolute right-0 top-full z-30 mt-1 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-800 dark:bg-slate-900"
+              className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-800 dark:bg-slate-900"
             >
-              <div className="border-b border-slate-100 px-3 py-2 dark:border-slate-800">
-                <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{user?.email}</p>
+              <div className="border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
+                <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{user?.firstName} {user?.lastName}</p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
                 <p className="text-xs capitalize text-slate-500 dark:text-slate-400">{user?.roles?.join(', ').replace(/_/g, ' ')}</p>
               </div>
               {assigned.length > 1 && (
@@ -144,18 +150,15 @@ export function Topbar({ onMenuClick }) {
                   </button>
                 </div>
               )}
-              <div className="px-1 py-1">
-                <Button
-                  type="button"
-                  role="menuitem"
-                  variant="danger"
-                  loading={loggingOut}
-                  onClick={handleLogout}
-                  className="w-full justify-start"
-                >
+              <div className="flex flex-col gap-0.5 px-1 py-1">
+                <Link to="/settings" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                  <Settings size={15} aria-hidden="true" />
+                  Settings
+                </Link>
+                <button type="button" role="menuitem" onClick={handleLogout} disabled={loggingOut} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:text-rose-400 dark:hover:bg-rose-950/30">
                   <LogOut size={15} aria-hidden="true" />
-                  Sign out
-                </Button>
+                  {loggingOut ? 'Signing out…' : 'Sign out'}
+                </button>
               </div>
             </div>
           )}
