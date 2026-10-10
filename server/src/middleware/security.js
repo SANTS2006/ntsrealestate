@@ -32,18 +32,35 @@ export const helmetMiddleware = helmet({
 // Strict, explicit-allowlist CORS — never a wildcard for an authenticated,
 // cookie-based API. Requests with no Origin header (server-to-server, curl)
 // are allowed through since they can't carry browser credentials anyway.
-export const corsMiddleware = cors({
-  origin(origin, callback) {
-    if (!origin || corsOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new AppError('FORBIDDEN', 'Origin not allowed by CORS policy.', 403));
-  },
+// A browser sends an Origin header even to the site it came from when it loads
+// module scripts and stylesheets. The app's own address is therefore always
+// allowed, so a stale CORS_ORIGINS (for example right after the service is
+// renamed or moved) can never block the app from loading its own files.
+export function isSameOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return false;
+  try {
+    return new URL(origin).host === req.get('host');
+  } catch {
+    return false;
+  }
+}
+
+const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-Id', 'Idempotency-Key'],
   maxAge: 600,
-});
+};
+
+export function corsMiddleware(req, res, next) {
+  const origin = req.headers.origin;
+  const allowed = !origin || isSameOrigin(req) || corsOrigins.includes(origin);
+  cors({
+    ...corsOptions,
+    origin: allowed ? true : (o, callback) => callback(new AppError('FORBIDDEN', 'Origin not allowed by CORS policy.', 403)),
+  })(req, res, next);
+}
 
 export function requestIdMiddleware(req, res, next) {
   req.id = req.headers['x-request-id'] || randomUUID();
@@ -90,7 +107,7 @@ export function authRateLimiter(maxOverride) {
 export function originCheckMiddleware(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const origin = req.headers.origin;
-  if (origin && !corsOrigins.includes(origin)) {
+  if (origin && !isSameOrigin(req) && !corsOrigins.includes(origin)) {
     throw AppError.forbidden('Request origin is not trusted.');
   }
   next();
