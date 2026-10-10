@@ -1,0 +1,86 @@
+# Render Blueprint — deploys this app as a single free Web Service that
+# serves both the API and the built React app from one origin (see
+# docs/deployment/render.md for the full walkthrough and why single-origin
+# matters for the session cookie).
+#
+# Usage: Render dashboard → New → Blueprint → pick this repo. Render reads
+# this file automatically. Fields marked `sync: false` are secrets you'll
+# be prompted to fill in during setup — they are never stored in this repo.
+services:
+  - type: web
+    name: ntsrealestate
+    runtime: node
+    plan: free
+    region: oregon
+    # `--include=dev` is required here even though NODE_ENV=production is set
+    # below — npm otherwise skips devDependencies (that's where `vite` lives,
+    # needed to build the client) whenever NODE_ENV=production is present in
+    # the environment during install, which Render's build step inherits.
+    buildCommand: npm install --include=dev && npm run build:client && npm run build:server && npm run deploy:migrate
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render assigns the public URL after the first deploy (shown in the
+      # dashboard as https://ntsrealestate.onrender.com). Come
+      # back and set CLIENT_URL + CORS_ORIGINS to that exact URL once you
+      # know it — see docs/deployment/render.md step 6.
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      # Build-time only (Vite inlines this into the bundle at `npm run
+      # build:client`, so it isn't read at runtime) — `/api/v1` is a
+      # relative path, correct regardless of the assigned domain, since
+      # frontend and backend are served from the same origin.
+      - key: VITE_API_URL
+        value: /api/v1
+      # Also build-time only — where the Terms & Conditions, Privacy
+      # Policy, and Contact links on the auth pages point.
+      - key: VITE_PUBLIC_SITE_URL
+        value: https://surprise-realty-listings.vercel.app
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: PRIMARY_ORGANIZATION_ID
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MFA_ENCRYPTION_KEY
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: "NTS Real Estate System"
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      # ---- Backup & Recovery (docs/operations/backup-and-recovery.md) ----
+      - key: BACKUP_STORAGE
+        value: s3
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: BACKUP_CRON_SECRET
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false

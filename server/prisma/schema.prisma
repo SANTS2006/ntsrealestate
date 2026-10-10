@@ -1,0 +1,1444 @@
+// NTS Real Estate System — Prisma schema for Neon PostgreSQL
+// Connection strategy: `url` = pooled (runtime), `directUrl` = direct (migrations).
+// See docs/database/database-design.md for rationale.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────
+
+enum OrganizationStatus {
+  active
+  suspended
+  cancelled
+}
+
+enum UserStatus {
+  pending
+  active
+  inactive
+  locked
+}
+
+enum PropertyStatus {
+  active
+  archived
+  under_construction
+}
+
+enum PropertyStructure {
+  whole
+  buildings
+  buildings_units
+  units
+}
+
+enum DealKind {
+  rent
+  buy
+  lease
+}
+
+enum DealStatus {
+  pending
+  approved
+  completed
+  cancelled
+}
+
+enum LandStatus {
+  available
+  reserved
+  sold
+  unavailable
+}
+
+enum UnitStatus {
+  available
+  occupied
+  reserved
+  under_maintenance
+  unavailable
+}
+
+enum OwnerStatus {
+  active
+  inactive
+}
+
+enum TenantStatus {
+  active
+  inactive
+  former
+}
+
+enum LeaseStatus {
+  draft
+  active
+  expiring_soon
+  expired
+  terminated
+  renewed
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  partially_paid
+  paid
+  overdue
+  void
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+  reversed
+}
+
+enum PaymentMethod {
+  cash
+  bank_transfer
+  card
+  mobile_money
+  cheque
+  other
+}
+
+enum ExpenseStatus {
+  pending_approval
+  approved
+  rejected
+  paid
+}
+
+enum VendorStatus {
+  active
+  inactive
+}
+
+enum MaintenancePriority {
+  low
+  medium
+  high
+  emergency
+}
+
+enum MaintenanceStatus {
+  open
+  in_review
+  assigned
+  scheduled
+  in_progress
+  completed
+  cancelled
+}
+
+enum WorkOrderStatus {
+  pending
+  scheduled
+  in_progress
+  completed
+  cancelled
+}
+
+enum InspectionType {
+  move_in
+  move_out
+  routine
+  property
+  unit
+}
+
+enum InspectionStatus {
+  scheduled
+  in_progress
+  completed
+  cancelled
+}
+
+enum DocumentEntityType {
+  land
+  property
+  building
+  unit
+  tenant
+  owner
+  lease
+  invoice
+  payment
+  expense
+  maintenance_request
+  work_order
+  inspection
+  vendor
+  user
+  organization
+}
+
+enum DocumentStatus {
+  active
+  archived
+  deletion_pending
+  deletion_failed
+  deleted
+}
+
+enum NotificationType {
+  rent_due
+  rent_overdue
+  lease_expiring
+  payment_received
+  maintenance_assigned
+  maintenance_completed
+  document_uploaded
+  deal_request
+  deal_update
+  user_invited
+  system
+  inspection_scheduled
+  lease_activated
+  invoice_sent
+  audit_remark_created
+  tenant_message
+  referral_used
+  referral_bonus_approved
+  referral_bonus_paid
+  rental_request
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// IDENTITY / RBAC
+// ─────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  lands              Land[]
+  deals              Deal[]
+  id                 String             @id @default(uuid()) @db.Uuid
+  name               String
+  legalName          String?            @map("legal_name")
+  registrationNumber String?            @map("registration_number")
+  email              String
+  phone              String?
+  address            String?
+  city               String?
+  region             String?
+  country            String?
+  logoDocumentId     String?            @map("logo_document_id") @db.Uuid
+  // URL path segment this tenant's entire system lives under (e.g.
+  // /acme-realty/login, /acme-realty/dashboard) — set once by the platform
+  // admin at creation, immutable afterward since it's baked into every link
+  // a tenant's users might have bookmarked or been emailed.
+  slug               String             @unique
+  // Hex colors chosen by the platform admin at creation — applied as CSS
+  // custom properties across this tenant's entire system (auth pages
+  // through the authenticated dashboard). See client/src/contexts/BrandingContext.jsx.
+  primaryColor       String             @default("#0f172a") @map("primary_color")
+  secondaryColor     String             @default("#0ea5e9") @map("secondary_color")
+  settings           Json               @default("{}")
+  status             OrganizationStatus @default(active)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  users               User[]
+  tenantRentals       TenantRental[]
+  chatRooms           ChatRoom[]
+  ownerAgents         OwnerAgent[]
+  roles               Role[]
+  properties          Property[]
+  owners              Owner[]
+  tenants             Tenant[]
+  leases              Lease[]
+  invoices            Invoice[]
+  payments            Payment[]
+  expenseCategories   ExpenseCategory[]
+  expenses            Expense[]
+  vendors             Vendor[]
+  maintenanceRequests MaintenanceRequest[]
+  workOrders          WorkOrder[]
+  inspections         Inspection[]
+  documents           Document[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  auditRemarks        AuditRemark[]
+  propertyAssignments PropertyAssignment[]
+  tenantMessages      TenantMessage[]
+  referrals           Referral[]
+
+  @@map("organizations")
+}
+
+model User {
+  id                  String     @id @default(uuid()) @db.Uuid
+  organizationId      String     @map("organization_id") @db.Uuid
+  firstName           String     @map("first_name")
+  lastName            String     @map("last_name")
+  email               String
+  phone               String?
+  passwordHash        String     @map("password_hash")
+  status              UserStatus @default(pending)
+  emailVerified       Boolean    @default(false) @map("email_verified")
+  mfaEnabled          Boolean    @default(false) @map("mfa_enabled")
+  // Encrypted (AES-256-GCM), NOT hashed — TOTP verification requires the
+  // server to recompute the current code from the raw secret, which a
+  // one-way hash makes impossible. See server/src/auth/mfa.js.
+  mfaSecretEncrypted  String?    @map("mfa_secret_encrypted")
+  // Progressive account lockout — layered on top of the per-IP+email rate
+  // limiter on /auth/login (see middleware/security.js authRateLimiter),
+  // so brute-forcing survives even a distributed/rotating-IP attacker.
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until") @db.Timestamptz
+  lastLoginAt         DateTime?  @map("last_login_at") @db.Timestamptz
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  // Every user gets one at creation (registration or invite) — only a
+  // tenant realistically shares theirs, but generating it uniformly avoids
+  // conditional logic at each of the two user-creation call sites. See
+  // utils/referralCode.js.
+  referralCode        String?    @unique @map("referral_code")
+  // Set at registration when the user checks the Terms & Conditions /
+  // Privacy Policy agreement box (see auth.service.js#registerOrganization).
+  // Null for users created by invite rather than self-registration, since
+  // an admin-invited user never sees that checkbox.
+  termsAcceptedAt     DateTime?  @map("terms_accepted_at") @db.Timestamptz
+
+  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  userRoles               UserRole[]
+  owner                   Owner?
+  tenant                  Tenant?
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  auditRemarks            AuditRemark[]
+  documentsUploaded       Document[]               @relation("DocumentUploadedBy")
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  mfaRecoveryCodes        MfaRecoveryCode[]
+  propertyAssignments     PropertyAssignment[]
+  tenantMessagesReceived  TenantMessage[]
+  referralsMade           Referral[]               @relation("ReferralsMade")
+  referredBy              Referral?                @relation("ReferralsReceived")
+  ownerLinks              OwnerAgent[]
+  chatKey                 ChatKey?
+  chatMemberships         ChatMember[]
+  chatMessagesSent        ChatMessage[]
+  chatAttachments         ChatAttachment[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// AUTHENTICATION SUPPORT TABLES
+// ─────────────────────────────────────────────────────────────────────────
+
+// Refresh tokens are stored hashed (never the raw token) so a database leak
+// alone doesn't grant usable credentials. Rotated on every use; reuse of an
+// already-rotated token revokes the whole chain (theft detection).
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  familyId     String    @map("family_id") @db.Uuid
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// Single-use, short-lived, hashed at rest.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+// Single-use MFA backup codes, hashed at rest.
+model MfaRecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
+}
+
+model Role {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+  isSystem       Boolean @default(false) @map("is_system")
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// Session store table shape is managed by connect-pg-simple's own migration
+// (server/src/config/session.js creates it via `createTableIfMissing`), so it
+// is intentionally NOT modeled here as a Prisma model.
+
+// ─────────────────────────────────────────────────────────────────────────
+// PROPERTIES
+// ─────────────────────────────────────────────────────────────────────────
+
+model Property {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  ownerId        String?           @map("owner_id") @db.Uuid
+  propertyCode   String            @map("property_code")
+  name           String
+  propertyType   String            @map("property_type")
+  description    String?
+  address        String
+  city           String?
+  region         String?
+  country        String?
+  latitude       Decimal?          @db.Decimal(9, 6)
+  longitude      Decimal?          @db.Decimal(9, 6)
+  status         PropertyStatus    @default(active)
+  // How the property is organised — see the property_structure migration.
+  structureType  PropertyStructure @default(buildings_units) @map("structure_type")
+  isShared       Boolean           @default(false) @map("is_shared")
+  amenities      String[]          @default([])
+  yearBuilt      Int?              @map("year_built")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  owner               Owner?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  buildings           Building[]
+  expenses            Expense[]
+  maintenanceRequests MaintenanceRequest[]
+  inspections         Inspection[]
+  assignments         PropertyAssignment[]
+  tenantMessages      TenantMessage[]
+  rentals             TenantRental[]
+
+  @@unique([organizationId, propertyCode])
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([status])
+  @@map("properties")
+}
+
+// A property_manager/agent only sees & manages properties they're
+// explicitly assigned to (see docs/security/authorization.md and
+// services/resourceAccess.service.js) — administrator/accountant/
+// maintenance_manager/auditor get organization-wide access via their role
+// permissions alone and never consult this table.
+model PropertyAssignment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("property_assignments")
+}
+
+model Building {
+  id          String  @id @default(uuid()) @db.Uuid
+  propertyId  String  @map("property_id") @db.Uuid
+  name        String
+  code        String?
+  floors      Int?
+  description String?
+  // Created by the system for a whole property / units placed directly in a property.
+  isImplicit  Boolean @default(false) @map("is_implicit")
+  isShared    Boolean @default(false) @map("is_shared")
+
+  property    Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  units       Unit[]
+  tenants     Tenant[]
+  rentals     TenantRental[]
+  inspections Inspection[]
+
+  @@index([propertyId])
+  @@map("buildings")
+}
+
+model Unit {
+  id              String     @id @default(uuid()) @db.Uuid
+  buildingId      String     @map("building_id") @db.Uuid
+  unitNumber      String     @map("unit_number")
+  unitType        String?    @map("unit_type")
+  floor           Int?
+  bedrooms        Int?
+  bathrooms       Int?
+  area            Decimal?   @db.Decimal(10, 2)
+  monthlyRent     Decimal    @map("monthly_rent") @db.Decimal(14, 2)
+  securityDeposit Decimal?   @map("security_deposit") @db.Decimal(14, 2)
+  status          UnitStatus @default(available)
+  description     String?
+  // Stands for the whole property / whole building rather than one unit in it.
+  // What the unit is offered for: renting, buying outright and/or a long lease.
+  offerRent       Boolean    @default(true) @map("offer_rent")
+  offerSale       Boolean    @default(false) @map("offer_sale")
+  offerLease      Boolean    @default(false) @map("offer_lease")
+  salePrice       Decimal?   @map("sale_price") @db.Decimal(14, 2)
+  leasePrice      Decimal?   @map("lease_price") @db.Decimal(14, 2)
+  leaseTermMonths Int?       @map("lease_term_months")
+  isWhole         Boolean    @default(false) @map("is_whole")
+  isShared        Boolean    @default(false) @map("is_shared")
+  furnished       Boolean    @default(false)
+  amenities       String[]   @default([])
+
+  building            Building             @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  leases              Lease[]
+  tenants             Tenant[]
+  maintenanceRequests MaintenanceRequest[]
+  inspections         Inspection[]
+  rentals             TenantRental[]
+  deals               Deal[]
+
+  @@unique([buildingId, unitNumber])
+  @@index([buildingId])
+  @@index([status])
+  @@map("units")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PEOPLE
+// ─────────────────────────────────────────────────────────────────────────
+
+model Owner {
+  lands          Land[]
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  userId         String?     @unique @map("user_id") @db.Uuid
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  status         OwnerStatus @default(active)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  properties   Property[]
+  agentLinks   OwnerAgent[]
+
+  @@index([organizationId])
+  @@map("owners")
+}
+
+model Tenant {
+  deals            Deal[]
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  userId           String?      @unique @map("user_id") @db.Uuid
+  firstName        String       @map("first_name")
+  lastName         String       @map("last_name")
+  email            String?
+  phone            String?
+  emergencyContact Json?        @map("emergency_contact")
+  status           TenantStatus @default(active)
+  // Convenience "where this tenant currently lives" reference, independent
+  // of Lease history — a tenant can be associated with a building (e.g. a
+  // commercial building contact) or a specific unit, optionally, without
+  // requiring a formal lease record to exist yet.
+  buildingId       String?      @map("building_id") @db.Uuid
+  unitId           String?      @map("unit_id") @db.Uuid
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  building            Building?            @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  unit                Unit?                @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  leases              Lease[]
+  invoices            Invoice[]
+  payments            Payment[]
+  maintenanceRequests MaintenanceRequest[]
+  messagesSent        TenantMessage[]
+  rentals             TenantRental[]
+
+  @@index([organizationId])
+  @@index([buildingId])
+  @@index([unitId])
+  @@map("tenants")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// LEASING
+// ─────────────────────────────────────────────────────────────────────────
+
+model Lease {
+  deals           Deal[]
+  id              String      @id @default(uuid()) @db.Uuid
+  organizationId  String      @map("organization_id") @db.Uuid
+  unitId          String      @map("unit_id") @db.Uuid
+  tenantId        String      @map("tenant_id") @db.Uuid
+  startDate       DateTime    @map("start_date") @db.Date
+  endDate         DateTime    @map("end_date") @db.Date
+  monthlyRent     Decimal     @map("monthly_rent") @db.Decimal(14, 2)
+  securityDeposit Decimal?    @map("security_deposit") @db.Decimal(14, 2)
+  paymentDueDay   Int         @default(1) @map("payment_due_day")
+  renewalDate     DateTime?   @map("renewal_date") @db.Date
+  status          LeaseStatus @default(draft)
+  terms           Json?
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  invoices     Invoice[]
+  payments     Payment[]
+
+  @@index([organizationId])
+  @@index([unitId])
+  @@index([tenantId])
+  @@index([status])
+  // Enforced again at the DB level via a partial unique index created in a
+  // migration: CREATE UNIQUE INDEX ON leases (unit_id) WHERE status = 'active'
+  // (Prisma cannot express partial indexes with a WHERE predicate natively
+  // pre-5.x @@unique syntax, so this is added as a raw SQL migration step —
+  // see database/migrations).
+  @@map("leases")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// FINANCE
+// ─────────────────────────────────────────────────────────────────────────
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  leaseId        String?       @map("lease_id") @db.Uuid
+  invoiceNumber  String        @map("invoice_number")
+  issueDate      DateTime      @map("issue_date") @db.Date
+  dueDate        DateTime      @map("due_date") @db.Date
+  subtotal       Decimal       @db.Decimal(14, 2)
+  tax            Decimal       @default(0) @db.Decimal(14, 2)
+  total          Decimal       @db.Decimal(14, 2)
+  amountPaid     Decimal       @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  balance        Decimal       @db.Decimal(14, 2)
+  status         InvoiceStatus @default(draft)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lease        Lease?       @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  payments     Payment[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([leaseId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model Payment {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  leaseId        String?       @map("lease_id") @db.Uuid
+  invoiceId      String?       @map("invoice_id") @db.Uuid
+  dealId         String?       @map("deal_id") @db.Uuid
+  amount         Decimal       @db.Decimal(14, 2)
+  currency       String        @default("USD")
+  paymentDate    DateTime      @map("payment_date") @db.Timestamptz
+  paymentMethod  PaymentMethod @map("payment_method")
+  reference      String?
+  idempotencyKey String?       @unique @map("idempotency_key")
+  status         PaymentStatus @default(completed)
+  notes          String?
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  lease        Lease?       @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  invoice      Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([dealId])
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+model ExpenseCategory {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  name           String
+  description    String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  expenses     Expense[]
+
+  @@unique([organizationId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id                String        @id @default(uuid()) @db.Uuid
+  organizationId    String        @map("organization_id") @db.Uuid
+  propertyId        String?       @map("property_id") @db.Uuid
+  categoryId        String        @map("category_id") @db.Uuid
+  vendorId          String?       @map("vendor_id") @db.Uuid
+  amount            Decimal       @db.Decimal(14, 2)
+  currency          String        @default("USD")
+  expenseDate       DateTime      @map("expense_date") @db.Date
+  description       String?
+  status            ExpenseStatus @default(pending_approval)
+  receiptDocumentId String?       @map("receipt_document_id") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property     Property?       @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  category     ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  vendor       Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([status])
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// OPERATIONS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Vendor {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  contactPerson  String?      @map("contact_person")
+  email          String?
+  phone          String?
+  address        String?
+  serviceType    String?      @map("service_type")
+  status         VendorStatus @default(active)
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  expenses            Expense[]
+  workOrders          WorkOrder[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@index([organizationId])
+  @@map("vendors")
+}
+
+model MaintenanceRequest {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  propertyId     String              @map("property_id") @db.Uuid
+  unitId         String?             @map("unit_id") @db.Uuid
+  tenantId       String?             @map("tenant_id") @db.Uuid
+  title          String
+  description    String?
+  priority       MaintenancePriority @default(medium)
+  status         MaintenanceStatus   @default(open)
+  assignedTo     String?             @map("assigned_to") @db.Uuid
+  vendorId       String?             @map("vendor_id") @db.Uuid
+  reportedAt     DateTime            @default(now()) @map("reported_at") @db.Timestamptz
+  resolvedAt     DateTime?           @map("resolved_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit         Unit?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  tenant       Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  vendor       Vendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  workOrders   WorkOrder[]
+
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([status])
+  @@index([priority])
+  @@map("maintenance_requests")
+}
+
+model WorkOrder {
+  id                   String          @id @default(uuid()) @db.Uuid
+  organizationId       String          @map("organization_id") @db.Uuid
+  maintenanceRequestId String          @map("maintenance_request_id") @db.Uuid
+  vendorId             String?         @map("vendor_id") @db.Uuid
+  assignedStaffId      String?         @map("assigned_staff_id") @db.Uuid
+  scheduledDate        DateTime?       @map("scheduled_date") @db.Date
+  completedDate        DateTime?       @map("completed_date") @db.Date
+  estimatedCost        Decimal?        @map("estimated_cost") @db.Decimal(14, 2)
+  actualCost           Decimal?        @map("actual_cost") @db.Decimal(14, 2)
+  status               WorkOrderStatus @default(pending)
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  maintenanceRequest MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+  vendor             Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([maintenanceRequestId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model Inspection {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  propertyId     String           @map("property_id") @db.Uuid
+  unitId         String?          @map("unit_id") @db.Uuid
+  buildingId     String?          @map("building_id") @db.Uuid
+  inspectorId    String?          @map("inspector_id") @db.Uuid
+  inspectionDate DateTime         @map("inspection_date") @db.Date
+  type           InspectionType
+  condition      String?
+  notes          String?
+  status         InspectionStatus @default(scheduled)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit         Unit?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  building     Building?    @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([propertyId])
+  @@map("inspections")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DOCUMENTS / NOTIFICATIONS / AUDIT
+// ─────────────────────────────────────────────────────────────────────────
+
+model Document {
+  id                     String             @id @default(uuid()) @db.Uuid
+  organizationId         String             @map("organization_id") @db.Uuid
+  entityType             DocumentEntityType @map("entity_type")
+  entityId               String             @map("entity_id") @db.Uuid
+  cloudinaryPublicId     String             @unique @map("cloudinary_public_id")
+  cloudinaryResourceType String             @map("cloudinary_resource_type")
+  cloudinaryAssetType    String             @default("authenticated") @map("cloudinary_asset_type")
+  originalFilename       String             @map("original_filename")
+  mimeType               String             @map("mime_type")
+  fileSize               Int                @map("file_size")
+  status                 DocumentStatus     @default(active)
+  uploadedBy             String             @map("uploaded_by") @db.Uuid
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  uploader     User         @relation("DocumentUploadedBy", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+  @@map("documents")
+}
+
+model Notification {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  type           NotificationType
+  title          String
+  message        String
+  readAt         DateTime?        @map("read_at") @db.Timestamptz
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([readAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  action         String
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id") @db.Uuid
+  oldValues      Json?    @map("old_values")
+  newValues      Json?    @map("new_values")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  timestamp      DateTime @default(now()) @db.Timestamptz
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// A free-text remark an auditor leaves after reviewing the system — distinct
+// from AuditLog (which is an automatic, per-action machine trail): this is a
+// deliberate, authored note ("reviewed Q3 financials, no exceptions found").
+// Immutable once created (no update/delete path), same permanence principle
+// as AuditLog itself.
+model AuditRemark {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("audit_remarks")
+}
+
+// One-directional: a tenant composes, the assigned agent(s) for their
+// property receive it (in-app + email, see tenantMessage.service.js).
+// No reply/thread support yet — a natural follow-up, not built here.
+model TenantMessage {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  recipientId    String    @map("recipient_id") @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  content        String
+  readAt         DateTime? @map("read_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient    User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([recipientId])
+  @@map("tenant_messages")
+}
+
+enum ReferralStatus {
+  pending
+  approved
+  paid
+}
+
+// Created automatically when someone registers with another user's
+// referralCode (see auth.service.js#registerOrganization) — never created
+// directly through the API. bonusAmount and status start unset/pending;
+// an administrator/accountant reviews and pays out manually (see
+// referral.service.js), there is no automatic invoice credit.
+model Referral {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  referrerId     String         @map("referrer_id") @db.Uuid
+  referredId     String         @unique @map("referred_id") @db.Uuid
+  code           String
+  bonusAmount    Decimal?       @map("bonus_amount") @db.Decimal(14, 2)
+  status         ReferralStatus @default(pending)
+  paidAt         DateTime?      @map("paid_at") @db.Timestamptz
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referrer     User         @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred     User         @relation("ReferralsReceived", fields: [referredId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([referrerId])
+  @@map("referrals")
+}
+
+// Platform-level operator, structurally separate from Organization/User —
+// intentionally NOT organizationId-scoped and never has an `organizationId`
+// on its own row. Manages the Organization table itself (create tenants,
+// activate/deactivate) through a dedicated auth flow (session keys
+// `req.session.platformAdminId`, never `req.session.userId`) and dedicated
+// middleware (`authenticatePlatformAdmin`), kept structurally apart from
+// every tenant-scoped route so a platform-admin session can never be
+// mistaken for — or granted — access to any tenant's operational data.
+model PlatformAdmin {
+  id                  String    @id @default(uuid()) @db.Uuid
+  firstName           String    @map("first_name")
+  lastName            String    @map("last_name")
+  email               String    @unique
+  passwordHash        String    @map("password_hash")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz
+  // A deactivated platform admin can't sign in or use an existing session,
+  // but the row (and who they were) is kept rather than deleted.
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  passwordResetTokens PlatformAdminPasswordResetToken[]
+  chatKey             ChatKey?
+  chatMemberships     ChatMember[]
+  chatMessagesSent    ChatMessage[]
+  chatAttachments     ChatAttachment[]
+
+  @@map("platform_admins")
+}
+
+// Same shape and semantics as PasswordResetToken, but for platform admins —
+// a separate table because the two actor types never share identity rows.
+// Doubles as the "set your password" invite token for a newly added admin.
+model PlatformAdminPasswordResetToken {
+  id              String    @id @default(uuid()) @db.Uuid
+  platformAdminId String    @map("platform_admin_id") @db.Uuid
+  tokenHash       String    @unique @map("token_hash")
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz
+  usedAt          DateTime? @map("used_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  platformAdmin PlatformAdmin @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
+
+  @@index([platformAdminId])
+  @@map("platform_admin_password_reset_tokens")
+}
+
+// Append-only record of what platform admins do (sign-ins, organization and
+// administrator changes). The actor is stored as a snapshot (id + name +
+// email) rather than a foreign key, so the history survives that admin
+// being deleted later.
+model PlatformAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
+  actorName   String   @map("actor_name")
+  actorEmail  String   @map("actor_email")
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  targetLabel String?  @map("target_label")
+  details     Json?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorId])
+  @@map("platform_audit_logs")
+}
+
+enum RentalStatus {
+  active
+  ended
+}
+
+enum OwnerAgentStatus {
+  active
+  inactive
+}
+
+// One row per property/building/unit a tenant has rented. A tenant is ONE
+// Tenant record (one person, one login) no matter how many places they
+// rent; each additional rental is just another row here, never a new tenant.
+// A unit rental sets unitId; a whole-building rental sets buildingId with no
+// unitId. propertyId is always set so access scoping never needs a join.
+model TenantRental {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  propertyId     String       @map("property_id") @db.Uuid
+  buildingId     String?      @map("building_id") @db.Uuid
+  unitId         String?      @map("unit_id") @db.Uuid
+  status         RentalStatus @default(active)
+  // 'public_site' (the tenant asked via the company website) or 'staff'.
+  source         String       @default("staff")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  endedAt        DateTime?    @map("ended_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  building     Building?    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unit         Unit?        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@map("tenant_rentals")
+}
+
+// Links an agent (a user with the agent role) to an owner. An owner can
+// have many agents and an agent can serve many owners; an agent sees the
+// properties and tenants of every owner they hold an ACTIVE link to. An
+// owner deactivating a link removes the agent's access to that owner only.
+model OwnerAgent {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  ownerId        String           @map("owner_id") @db.Uuid
+  agentUserId    String           @map("agent_user_id") @db.Uuid
+  status         OwnerAgentStatus @default(active)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        Owner        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  agent        User         @relation(fields: [agentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, agentUserId])
+  @@index([organizationId])
+  @@index([agentUserId])
+  @@map("owner_agents")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CHAT (end-to-end encrypted)
+//
+// The server only ever stores ciphertext. Each person has an ECDH key pair
+// made in their browser; the private half is stored here ONLY encrypted with
+// a key derived from a chat passphrase the server never sees. Every room has
+// one AES-256-GCM room key, generated in a member's browser and stored here
+// only "wrapped" (encrypted) separately for each member's public key.
+// Messages and files are encrypted with that key before they leave the
+// browser. Anyone who is not a member of a room is never sent its wrapped
+// key, messages or files.
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ChatRoomType {
+  community_tenants
+  community_staff
+  community_all
+  direct
+  support
+}
+
+// A person's chat identity: the public key others encrypt to, plus the
+// passphrase-encrypted private key (so a new device can restore it).
+// Exactly one of userId / platformAdminId is set.
+model ChatKey {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String?  @unique @map("user_id") @db.Uuid
+  platformAdminId     String?  @unique @map("platform_admin_id") @db.Uuid
+  publicKey           String   @map("public_key")
+  encryptedPrivateKey String   @map("encrypted_private_key")
+  keySalt             String   @map("key_salt")
+  keyIv               String   @map("key_iv")
+  kdfIterations       Int      @default(250000) @map("kdf_iterations")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformAdmin PlatformAdmin? @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
+
+  @@map("chat_keys")
+}
+
+model ChatRoom {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String?      @map("organization_id") @db.Uuid
+  type           ChatRoomType
+  name           String?
+  // Makes "get or create" idempotent: one tenants community per organization,
+  // one direct room per pair of people, one support room per organization.
+  dedupeKey      String       @unique @map("dedupe_key")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      ChatMember[]
+  messages     ChatMessage[]
+  attachments  ChatAttachment[]
+
+  @@index([organizationId])
+  @@map("chat_rooms")
+}
+
+model ChatMember {
+  id               String    @id @default(uuid()) @db.Uuid
+  roomId           String    @map("room_id") @db.Uuid
+  userId           String?   @map("user_id") @db.Uuid
+  platformAdminId  String?   @map("platform_admin_id") @db.Uuid
+  // The room key, wrapped (encrypted) for this member by another member's
+  // browser; null until a member who holds the key has distributed it.
+  wrappedKey       String?   @map("wrapped_key")
+  wrapIv           String?   @map("wrap_iv")
+  wrapperPublicKey String?   @map("wrapper_public_key")
+  joinedAt         DateTime  @default(now()) @map("joined_at") @db.Timestamptz
+  lastReadAt       DateTime? @map("last_read_at") @db.Timestamptz
+
+  room          ChatRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformAdmin PlatformAdmin? @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@unique([roomId, platformAdminId])
+  @@index([userId])
+  @@index([platformAdminId])
+  @@map("chat_members")
+}
+
+model ChatMessage {
+  id                    String   @id @default(uuid()) @db.Uuid
+  roomId                String   @map("room_id") @db.Uuid
+  senderUserId          String?  @map("sender_user_id") @db.Uuid
+  senderPlatformAdminId String?  @map("sender_platform_admin_id") @db.Uuid
+  // AES-GCM ciphertext (base64) of a JSON payload (text, or a file's key and
+  // metadata) and its IV — opaque to the server.
+  ciphertext            String
+  iv                    String
+  attachmentId          String?  @unique @map("attachment_id") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  room                ChatRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderUser          User?           @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  senderPlatformAdmin PlatformAdmin?  @relation(fields: [senderPlatformAdminId], references: [id], onDelete: Cascade)
+  attachment          ChatAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, createdAt])
+  @@map("chat_messages")
+}
+
+// An encrypted file (picture, video, voice message): the bytes here are
+// ciphertext; the key to open them travels inside the encrypted message.
+model ChatAttachment {
+  id                      String   @id @default(uuid()) @db.Uuid
+  roomId                  String   @map("room_id") @db.Uuid
+  uploaderUserId          String?  @map("uploader_user_id") @db.Uuid
+  uploaderPlatformAdminId String?  @map("uploader_platform_admin_id") @db.Uuid
+  data                    Bytes
+  size                    Int
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  room                  ChatRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  uploaderUser          User?          @relation(fields: [uploaderUserId], references: [id], onDelete: Cascade)
+  uploaderPlatformAdmin PlatformAdmin? @relation(fields: [uploaderPlatformAdminId], references: [id], onDelete: Cascade)
+  message               ChatMessage?
+
+  @@index([roomId])
+  @@map("chat_attachments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// LANDS, DEALS AND PLATFORM SETTINGS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Land {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  ownerId        String?    @map("owner_id") @db.Uuid
+  title          String
+  description    String?
+  landType       String     @default("residential") @map("land_type")
+  area           Decimal    @db.Decimal(14, 2)
+  areaUnit       String     @default("acres") @map("area_unit")
+  price          Decimal    @db.Decimal(14, 2)
+  address        String?
+  city           String?
+  region         String?
+  country        String?
+  latitude       Decimal?   @db.Decimal(9, 6)
+  longitude      Decimal?   @db.Decimal(9, 6)
+  titleDocument  String?    @map("title_document")
+  features       String[]   @default([])
+  status         LandStatus @default(available)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        Owner?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  deals        Deal[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("lands")
+}
+
+// Someone renting, buying or leasing a house (a unit), or buying a land. The
+// customer is a Tenant record; payments are recorded against the deal.
+model Deal {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  kind           DealKind
+  status         DealStatus @default(pending)
+  tenantId       String     @map("tenant_id") @db.Uuid
+  unitId         String?    @map("unit_id") @db.Uuid
+  landId         String?    @map("land_id") @db.Uuid
+  // Denormalised so a list can be narrowed to an owner's / agent's own
+  // properties without joining through the unit.
+  propertyId     String?    @map("property_id") @db.Uuid
+  ownerId        String?    @map("owner_id") @db.Uuid
+  leaseId        String?    @map("lease_id") @db.Uuid
+  price          Decimal    @db.Decimal(14, 2)
+  termMonths     Int?       @map("term_months")
+  notes          String?
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unit         Unit?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  land         Land?        @relation(fields: [landId], references: [id], onDelete: SetNull)
+  lease        Lease?       @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  payments     Payment[]
+
+  @@index([organizationId])
+  @@index([tenantId])
+  @@index([propertyId])
+  @@index([ownerId])
+  @@index([kind, status])
+  @@map("deals")
+}
+
+// Platform-wide switches (for example maintenance mode), one row per key.
+model PlatformSetting {
+  key       String   @id
+  value     Json     @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("platform_settings")
+}
+
+// ── Backup & Recovery (platform admin) ───────────────────────────────────
+// No relations on purpose: a restore rewrites the application tables and must
+// never cascade into its own records. See docs/operations/backup-and-recovery.md.
+model Backup {
+  id              String    @id @default(uuid()) @db.Uuid
+  type            String
+  status          String    @default("PENDING")
+  verification    String    @default("UNVERIFIED")
+  sizeBytes       BigInt?   @map("size_bytes")
+  checksumSha256  String?   @map("checksum_sha256")
+  encrypted       Boolean   @default(false)
+  storageProvider String    @map("storage_provider")
+  storageKey      String?   @map("storage_key")
+  tableCount      Int?      @map("table_count")
+  rowCount        Int?      @map("row_count")
+  tableCounts     Json?     @map("table_counts")
+  schemaMigration String?   @map("schema_migration")
+  createdById     String?   @map("created_by_id") @db.Uuid
+  createdByName   String?   @map("created_by_name")
+  errorMessage    String?   @map("error_message")
+  startedAt       DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  heartbeatAt     DateTime  @default(now()) @map("heartbeat_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  requestId       String?   @map("request_id")
+
+  @@index([startedAt(sort: Desc)])
+  @@index([status])
+  @@map("backups")
+}
+
+model BackupRestore {
+  id             String    @id @default(uuid()) @db.Uuid
+  backupId       String    @map("backup_id") @db.Uuid
+  safetyBackupId String?   @map("safety_backup_id") @db.Uuid
+  status         String    @default("pending")
+  startedById    String?   @map("started_by_id") @db.Uuid
+  startedByName  String?   @map("started_by_name")
+  backupTakenAt  DateTime? @map("backup_taken_at") @db.Timestamptz
+  errorMessage   String?   @map("error_message")
+  rolledBack     Boolean   @default(false) @map("rolled_back")
+  verification   Json?
+  startedAt      DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  heartbeatAt    DateTime  @default(now()) @map("heartbeat_at") @db.Timestamptz
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz
+  requestId      String?   @map("request_id")
+
+  @@index([startedAt(sort: Desc)])
+  @@map("backup_restores")
+}
+
+model IdempotencyKey {
+  id           String    @id @default(uuid()) @db.Uuid
+  key          String
+  scope        String
+  method       String
+  path         String
+  requestHash  String    @map("request_hash")
+  statusCode   Int?      @map("status_code")
+  responseBody Json?     @map("response_body")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  completedAt  DateTime? @map("completed_at") @db.Timestamptz
+
+  @@unique([scope, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}

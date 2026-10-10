@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+
+  /* Default brand/accent ramps — the NTS logo palette (blues and cyan), expressed as "R G B" triples for Tailwind's
+     `rgb(var(--x) / <alpha-value>)` color pattern (see tailwind.config.js).
+     src/contexts/BrandingContext.jsx overrides these per tenant at
+     runtime; these defaults are what renders before that fetch resolves
+     (and for the platform-admin console, which has no tenant). */
+  --color-brand-50: 234 243 255;
+  --color-brand-100: 211 230 255;
+  --color-brand-200: 169 205 255;
+  --color-brand-300: 111 174 255;
+  --color-brand-400: 60 141 255;
+  --color-brand-500: 26 111 240;
+  --color-brand-600: 11 85 212;
+  --color-brand-700: 9 68 171;
+  --color-brand-800: 10 53 133;
+  --color-brand-900: 11 42 102;
+  --color-brand-950: 6 23 56;
+
+  --color-accent-50: 230 249 255;
+  --color-accent-100: 194 241 255;
+  --color-accent-200: 138 228 255;
+  --color-accent-300: 77 211 255;
+  --color-accent-400: 27 192 245;
+  --color-accent-500: 0 166 220;
+  --color-accent-600: 0 133 181;
+  --color-accent-700: 0 106 145;
+  --color-accent-800: 0 82 111;
+  --color-accent-900: 0 58 79;
+}
+
+@layer base {
+  * {
+    @apply border-slate-200 dark:border-slate-800;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+  /* Respect reduced-motion preferences (WCAG). */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+  /* Visible focus ring everywhere, for keyboard navigation. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+  }
+}
+
+@layer utilities {
+  /* Entrance animation for the auth screens (login/register/forgot/reset) —
+     since they're separate routes (no shared-element crossfade library is
+     installed), each page fading + sliding in on mount is what reads as a
+     "smooth transition" moving between them. */
+  @keyframes auth-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-auth-in {
+    animation: auth-fade-in 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Slim, brand-tinted scrollbar for the sidebar nav, data tables, and the
+     main scroll area — applied explicitly rather than globally so dense UI
+     (modals, dropdowns) keeps the browser's native scrollbar. */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.brand.300') transparent;
+  }
+  .dark .custom-scrollbar {
+    scrollbar-color: theme('colors.brand.800') transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme('colors.brand.300');
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme('colors.brand.800');
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: theme('colors.brand.400');
+  }
+}
+
+/* Button activity indicator: three dots in a wave plus a sweeping line along
+   the bottom edge — shown on any button while its action is running. */
+@keyframes btn-wave {
+  0%, 60%, 100% { transform: translateY(0) scale(0.7); opacity: 0.5; }
+  30% { transform: translateY(-4px) scale(1.15); opacity: 1; }
+}
+@keyframes btn-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.btn-dot { animation: btn-wave 0.9s ease-in-out infinite; }
+.btn-sweep { animation: btn-sweep 1.2s ease-in-out infinite; }
+
+/* No sideways overflow anywhere: media never exceeds its box, long words wrap. */
+img, video, canvas, svg { max-width: 100%; }
+body { overflow-x: hidden; }
+
+/* Browser autofill (a saved email, for example) must not recolour the field. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0f172a;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 600000s ease-in-out 0s;
+}
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill,
+.dark select:-webkit-autofill {
+  -webkit-text-fill-color: #f1f5f9;
+  caret-color: #f1f5f9;
+  box-shadow: 0 0 0 1000px #0f172a inset;
+  -webkit-box-shadow: 0 0 0 1000px #0f172a inset;
+}
