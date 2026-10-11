@@ -6,6 +6,7 @@ import { listPlatformAuditLogs } from '../services/platformAudit.service.js';
 import { parsePagination } from '../utils/pagination.js';
 import * as maintenanceService from '../services/maintenanceMode.service.js';
 import * as avatarService from '../services/platformAdminAvatar.service.js';
+import * as mfaService from '../services/platformAdminMfa.service.js';
 
 export const login = asyncHandler(async (req, res) => {
   const result = await platformAdminService.loginPlatformAdmin(req.body, req);
@@ -135,3 +136,9 @@ export const getAvatar = asyncHandler(async (req, res) => {
   res.setHeader('Cache-Control', 'private, max-age=86400');
   res.send(data);
 });
+
+export const mfaChallenge = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.completeChallenge(req.body, req) }));
+export const mfaEnroll = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.enroll(req.platformAdmin, req) }));
+export const mfaConfirm = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.confirm(req.platformAdmin, req.body.code, req), message: 'Two-factor authentication is on.' }));
+export const mfaDisable = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.disable(req.platformAdmin, req.body, req), message: 'Two-factor authentication is off.' }));
+export const mfaReset = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.resetFor(req.params.id, req.platformAdmin, req), message: 'Two-factor authentication was reset.' }));

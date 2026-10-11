@@ -25,6 +25,7 @@ export function serializePlatformAdmin(admin, defaultId = null) {
     lastName: admin.lastName,
     email: admin.email,
     isActive: admin.isActive,
+    mfaEnabled: admin.mfaEnabled,
     lastLoginAt: admin.lastLoginAt,
     createdAt: admin.createdAt,
   };

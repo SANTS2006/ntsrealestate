@@ -67,8 +67,8 @@ export function verifyRefreshToken(token) {
 // POST /auth/mfa/challenge. Signed with the access-token secret but scoped
 // with `purpose` so it can never be accepted anywhere a real access token is
 // expected, and vice versa.
-export function signMfaChallengeToken(userId) {
-  return jwt.sign({ sub: userId, purpose: 'mfa_challenge' }, env.JWT_ACCESS_SECRET, {
+export function signMfaChallengeToken(userId, purpose = 'mfa_challenge') {
+  return jwt.sign({ sub: userId, purpose }, env.JWT_ACCESS_SECRET, {
     algorithm: 'HS256',
     expiresIn: '5m',
     issuer: env.JWT_ISSUER,
@@ -76,7 +76,7 @@ export function signMfaChallengeToken(userId) {
   });
 }
 
-export function verifyMfaChallengeToken(token) {
+export function verifyMfaChallengeToken(token, purpose = 'mfa_challenge') {
   let payload;
   try {
     payload = jwt.verify(token, env.JWT_ACCESS_SECRET, {
@@ -87,6 +87,6 @@ export function verifyMfaChallengeToken(token) {
   } catch {
     throw AppError.unauthorized('This MFA challenge has expired. Please sign in again.');
   }
-  if (payload.purpose !== 'mfa_challenge') throw AppError.unauthorized('Invalid MFA challenge.');
+  if (payload.purpose !== purpose) throw AppError.unauthorized('Invalid MFA challenge.');
   return payload;
 }

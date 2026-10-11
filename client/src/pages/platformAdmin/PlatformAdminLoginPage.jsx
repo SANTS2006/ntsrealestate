@@ -15,25 +15,55 @@ const schema = z.object({
   password: z.string().min(1, 'Password is required.'),
 });
 
+const codeSchema = z.object({ code: z.string().trim().min(6, 'Enter the 6-digit code, or a recovery code.').max(11) });
+
 export default function PlatformAdminLoginPage() {
   useDocumentTitle('Platform Admin');
-  const { login } = usePlatformAdmin();
+  const { login, completeMfa } = usePlatformAdmin();
+  const [mfaToken, setMfaToken] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [serverError, setServerError] = useState(null);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) });
+  const codeForm = useForm({ resolver: zodResolver(codeSchema) });
 
   const redirectTo = location.state?.from ?? '/platform-admin';
 
   const onSubmit = async (body) => {
     setServerError(null);
     try {
-      await login(body.email, body.password);
+      const result = await login(body.email, body.password);
+      if (result.mfaRequired) { setMfaToken(result.mfaToken); return; }
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setServerError(err.message);
     }
   };
+
+  const onSubmitCode = async ({ code }) => {
+    setServerError(null);
+    try {
+      await completeMfa(mfaToken, code.trim());
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setServerError(err.message);
+      // An expired ticket means starting again from the password.
+      if (err.statusCode === 401 && /expired|start again/i.test(err.message)) setMfaToken(null);
+    }
+  };
+
+  if (mfaToken) {
+    return (
+      <PlatformAuthShell title="Two-factor verification" subtitle="Enter the 6-digit code from your authenticator app, or one of your recovery codes.">
+        {serverError && <Alert variant="error" className="mb-4">{serverError}</Alert>}
+        <form onSubmit={codeForm.handleSubmit(onSubmitCode)} noValidate className="flex flex-col gap-4">
+          <Field label="Verification code" placeholder="123456" inputMode="text" autoComplete="one-time-code" autoFocus glass error={codeForm.formState.errors.code?.message} {...codeForm.register('code')} />
+          <Button type="submit" loading={codeForm.formState.isSubmitting} className="w-full mt-2">Verify and sign in</Button>
+          <button type="button" onClick={() => { setMfaToken(null); setServerError(null); }} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Back to sign in</button>
+        </form>
+      </PlatformAuthShell>
+    );
+  }
 
   return (
     <PlatformAuthShell title="Platform Admin">

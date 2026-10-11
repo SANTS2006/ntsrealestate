@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Users, UserPlus, UserX, UserCheck, Trash2 } from 'lucide-react';
+import { Users, UserPlus, UserX, UserCheck, Trash2, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
@@ -67,6 +67,11 @@ export default function PlatformAdminAdministratorsPage() {
   const [added, setAdded] = useState(null);
   const [pending, setPending] = useState(null); // { admin, nextActive }
   const [pendingDelete, setPendingDelete] = useState(null);
+
+  const resetMfa = async (a) => {
+    if (!window.confirm(`Switch off two-factor sign-in for ${a.firstName} ${a.lastName}? They will sign in with just their password until they set it up again.`)) return;
+    try { await platformAdminApi.resetAdminMfa(a.id); await load(); } catch (err) { setServerError(err.message); }
+  };
 
   const load = useCallback(() => {
     setError(null);
@@ -171,7 +176,7 @@ export default function PlatformAdminAdministratorsPage() {
                     {a.isDefault && <Badge tone="brand" className="ml-2">Default</Badge>}
                   </Td>
                   <Td>{a.email}</Td>
-                  <Td><Badge tone={a.isActive ? 'success' : 'danger'}>{a.isActive ? 'Active' : 'Deactivated'}</Badge></Td>
+                  <Td><Badge tone={a.isActive ? 'success' : 'danger'}>{a.isActive ? 'Active' : 'Deactivated'}</Badge>{a.mfaEnabled && <Badge tone="brand" className="ml-1">2FA</Badge>}</Td>
                   <Td>{a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleDateString() : 'Never'}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
@@ -186,6 +191,9 @@ export default function PlatformAdminAdministratorsPage() {
                         Reactivate
                       </Button>
                     ))}
+                    {a.id !== me?.id && a.mfaEnabled && (
+                      <Button variant="secondary" size="sm" onClick={() => resetMfa(a)}><ShieldCheck size={14} aria-hidden="true" />Reset 2FA</Button>
+                    )}
                     {a.id !== me?.id && !a.isDefault && (
                       <Button variant="danger" size="sm" onClick={() => setPendingDelete(a)} aria-label={`Delete ${a.firstName} ${a.lastName}`}>
                         <Trash2 size={14} aria-hidden="true" />

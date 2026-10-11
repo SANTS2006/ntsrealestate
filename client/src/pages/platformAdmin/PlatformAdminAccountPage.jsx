@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { UserCog, Camera, Trash2 } from 'lucide-react';
 import { AdminAvatar } from '../../components/platformAdmin/AdminAvatar.jsx';
+import { MfaCard } from '../../components/settings/MfaSection.jsx';
 import { PageHeader } from '../../components/ui/PageHeader.jsx';
 import { Card, CardHeader, CardBody } from '../../components/ui/Card.jsx';
 import { Field } from '../../components/ui/Input.jsx';
@@ -161,6 +162,11 @@ function PasswordCard() {
   );
 }
 
+function PlatformMfa() {
+  const { admin, refresh } = usePlatformAdmin();
+  return <MfaCard api={platformAdminApi} enabled={Boolean(admin?.mfaEnabled)} onChanged={refresh} />;
+}
+
 export default function PlatformAdminAccountPage() {
   useDocumentTitle('My account — Platform Admin');
   return (
@@ -170,6 +176,7 @@ export default function PlatformAdminAccountPage() {
         <PictureCard />
         <ProfileCard />
         <PasswordCard />
+        <PlatformMfa />
       </div>
     </>
   );

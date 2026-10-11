@@ -25,6 +25,7 @@ import { generateUniqueReferralCode } from '../utils/referralCode.js';
 import { logger } from '../config/logger.js';
 import { platformAudit } from './platformAudit.service.js';
 import { env } from '../config/env.js';
+import { signMfaChallengeToken } from '../auth/jwt.js';
 
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
@@ -58,6 +59,18 @@ export async function loginPlatformAdmin({ email, password }, req) {
     throw AppError.forbidden('Your account has been deactivated. Please contact the platform administrator.');
   }
 
+  // With two-factor on, a correct password is only the first step: no session
+  // exists until the authenticator (or a recovery) code is also accepted.
+  if (admin.mfaEnabled && admin.mfaSecretEncrypted) {
+    return { mfaRequired: true, mfaToken: signMfaChallengeToken(admin.id, PLATFORM_MFA_PURPOSE) };
+  }
+  return establishPlatformSession(admin, req);
+}
+
+export const PLATFORM_MFA_PURPOSE = 'platform_mfa_challenge';
+
+// Signs the admin in: fresh session, failed-attempt counter cleared, audited.
+export async function establishPlatformSession(admin, req) {
   await resetPlatformAdminFailedLogins(admin.id);
 
   await new Promise((resolve, reject) => {
@@ -70,7 +83,7 @@ export async function loginPlatformAdmin({ email, password }, req) {
 
   logger.info({ platformAdminId: admin.id }, 'platform admin logged in');
   await platformAudit({ actor: admin, action: 'auth.login', req });
-  return { admin: { id: admin.id, firstName: admin.firstName, lastName: admin.lastName, email: admin.email, avatarUpdatedAt: admin.avatarUpdatedAt } };
+  return { admin: { id: admin.id, firstName: admin.firstName, lastName: admin.lastName, email: admin.email, avatarUpdatedAt: admin.avatarUpdatedAt, mfaEnabled: admin.mfaEnabled } };
 }
 
 export function logoutPlatformAdmin(req) {

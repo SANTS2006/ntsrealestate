@@ -30,6 +30,13 @@ export function PlatformAdminProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const res = await platformAdminApi.login({ email, password });
+    // With two-factor on there is no session yet: the caller asks for the code.
+    if (res.data.admin) setAdmin(res.data.admin);
+    return res.data;
+  }, []);
+
+  const completeMfa = useCallback(async (mfaToken, code) => {
+    const res = await platformAdminApi.mfaChallenge({ mfaToken, code });
     setAdmin(res.data.admin);
     return res.data;
   }, []);
@@ -43,8 +50,8 @@ export function PlatformAdminProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ admin, loading, isAuthenticated: Boolean(admin), login, logout, refresh }),
-    [admin, loading, login, logout, refresh]
+    () => ({ admin, loading, isAuthenticated: Boolean(admin), login, completeMfa, logout, refresh }),
+    [admin, loading, login, completeMfa, logout, refresh]
   );
 
   return <PlatformAdminContext.Provider value={value}>{children}</PlatformAdminContext.Provider>;

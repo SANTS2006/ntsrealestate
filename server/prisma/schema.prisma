@@ -1042,21 +1042,24 @@ model Referral {
 // every tenant-scoped route so a platform-admin session can never be
 // mistaken for — or granted — access to any tenant's operational data.
 model PlatformAdmin {
-  id                  String               @id @default(uuid()) @db.Uuid
-  firstName           String               @map("first_name")
-  lastName            String               @map("last_name")
-  email               String               @unique
-  passwordHash        String               @map("password_hash")
-  failedLoginAttempts Int                  @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime?            @map("locked_until") @db.Timestamptz
-  lastLoginAt         DateTime?            @map("last_login_at") @db.Timestamptz
+  id                  String                      @id @default(uuid()) @db.Uuid
+  firstName           String                      @map("first_name")
+  lastName            String                      @map("last_name")
+  email               String                      @unique
+  passwordHash        String                      @map("password_hash")
+  failedLoginAttempts Int                         @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?                   @map("locked_until") @db.Timestamptz
+  lastLoginAt         DateTime?                   @map("last_login_at") @db.Timestamptz
   // A deactivated platform admin can't sign in or use an existing session,
   // but the row (and who they were) is kept rather than deleted.
-  isActive            Boolean              @default(true) @map("is_active")
-  avatarUpdatedAt     DateTime?            @map("avatar_updated_at") @db.Timestamptz
+  isActive            Boolean                     @default(true) @map("is_active")
+  avatarUpdatedAt     DateTime?                   @map("avatar_updated_at") @db.Timestamptz
+  mfaEnabled          Boolean                     @default(false) @map("mfa_enabled")
+  mfaSecretEncrypted  String?                     @map("mfa_secret_encrypted")
+  recoveryCodes       PlatformAdminRecoveryCode[]
   avatar              PlatformAdminAvatar?
-  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+  createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime                    @updatedAt @map("updated_at") @db.Timestamptz
 
   passwordResetTokens PlatformAdminPasswordResetToken[]
   chatKey             ChatKey?
@@ -1454,4 +1457,16 @@ model PlatformAdminAvatar {
   platformAdmin   PlatformAdmin @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
 
   @@map("platform_admin_avatars")
+}
+
+model PlatformAdminRecoveryCode {
+  id              String        @id @default(uuid()) @db.Uuid
+  platformAdminId String        @map("platform_admin_id") @db.Uuid
+  codeHash        String        @map("code_hash")
+  usedAt          DateTime?     @map("used_at") @db.Timestamptz
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  platformAdmin   PlatformAdmin @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
+
+  @@index([platformAdminId])
+  @@map("platform_admin_recovery_codes")
 }

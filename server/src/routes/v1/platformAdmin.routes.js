@@ -5,6 +5,7 @@ import { authenticatePlatformAdmin } from '../../middleware/platformAdminAuth.js
 import { singleFileUpload, limitedFileUpload } from '../../middleware/upload.js';
 import { validate } from '../../middleware/validate.js';
 import * as platformAdminController from '../../controllers/platformAdmin.controller.js';
+import { mfaChallengeSchema, mfaConfirmSchema, mfaDisableSchema } from '../../validators/auth.validators.js';
 import * as backupController from '../../controllers/backup.controller.js';
 import { listBackupsSchema, listRestoresSchema, backupIdSchema, policySchema, prepareRestoreSchema, startRestoreSchema } from '../../validators/backup.validators.js';
 import {
@@ -23,6 +24,11 @@ platformAdminRouter.post('/auth/reset-password', authRateLimiter(), csrfProtecti
 platformAdminRouter.post('/auth/change-password', authRateLimiter(), authenticatePlatformAdmin, csrfProtection, validate(platformChangePasswordSchema), platformAdminController.changePassword);
 platformAdminRouter.patch('/auth/profile', authenticatePlatformAdmin, csrfProtection, validate(platformProfileSchema), platformAdminController.updateProfile);
 
+platformAdminRouter.post('/auth/mfa/challenge', authRateLimiter(), csrfProtection, validate(mfaChallengeSchema), platformAdminController.mfaChallenge);
+platformAdminRouter.post('/auth/mfa/enroll', authenticatePlatformAdmin, csrfProtection, platformAdminController.mfaEnroll);
+platformAdminRouter.post('/auth/mfa/confirm', authRateLimiter(), authenticatePlatformAdmin, csrfProtection, validate(mfaConfirmSchema), platformAdminController.mfaConfirm);
+platformAdminRouter.post('/auth/mfa/disable', authRateLimiter(), authenticatePlatformAdmin, csrfProtection, validate(mfaDisableSchema), platformAdminController.mfaDisable);
+platformAdminRouter.post('/admins/:id/mfa/reset', authenticatePlatformAdmin, csrfProtection, validate(organizationIdParamSchema), platformAdminController.mfaReset);
 platformAdminRouter.post('/auth/avatar', authenticatePlatformAdmin, csrfProtection, limitedFileUpload('avatar', 2 * 1024 * 1024), platformAdminController.uploadAvatar);
 platformAdminRouter.delete('/auth/avatar', authenticatePlatformAdmin, csrfProtection, platformAdminController.removeAvatar);
 platformAdminRouter.get('/admins/:id/avatar', authenticatePlatformAdmin, validate(organizationIdParamSchema), platformAdminController.getAvatar);

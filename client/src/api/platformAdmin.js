@@ -7,6 +7,11 @@ export const platformAdminApi = {
   forgotPassword: (email) => apiClient.post('/platform-admin/auth/forgot-password', { email }),
   resetPassword: (body) => apiClient.post('/platform-admin/auth/reset-password', body),
   changePassword: (body) => apiClient.post('/platform-admin/auth/change-password', body),
+  mfaChallenge: (body) => apiClient.post('/platform-admin/auth/mfa/challenge', body),
+  mfaEnroll: () => apiClient.post('/platform-admin/auth/mfa/enroll'),
+  mfaConfirm: (code) => apiClient.post('/platform-admin/auth/mfa/confirm', { code }),
+  mfaDisable: (body) => apiClient.post('/platform-admin/auth/mfa/disable', body),
+  resetAdminMfa: (id) => apiClient.post(`/platform-admin/admins/${id}/mfa/reset`),
   uploadAvatar: (file) => {
     const formData = new FormData();
     formData.append('avatar', file);

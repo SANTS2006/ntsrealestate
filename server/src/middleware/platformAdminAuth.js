@@ -19,6 +19,6 @@ export const authenticatePlatformAdmin = asyncHandler(async (req, res, next) => 
     return req.session.destroy(() => next(AppError.forbidden('Your account has been deactivated. Please contact the platform administrator.')));
   }
 
-  req.platformAdmin = { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName, avatarUpdatedAt: admin.avatarUpdatedAt };
+  req.platformAdmin = { id: admin.id, email: admin.email, firstName: admin.firstName, lastName: admin.lastName, avatarUpdatedAt: admin.avatarUpdatedAt, mfaEnabled: admin.mfaEnabled };
   next();
 });
