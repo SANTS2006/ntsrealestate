@@ -9,7 +9,7 @@ import { Logo } from '../ui/Logo.jsx';
 import { signOutWithNotice } from '../ui/SignOutOverlay.jsx';
 import { useAuth, getLoginPath } from '../../contexts/AuthContext.jsx';
 import { useOptionalChat } from '../../contexts/ChatContext.jsx';
-import { notificationsApi } from '../../api/notifications.js';
+import { useNotifications } from '../../contexts/NotificationsContext.jsx';
 import { authApi } from '../../api/auth.js';
 
 function useOutsideClick(ref, onOutside) {
@@ -27,18 +27,11 @@ export function Topbar({ onMenuClick }) {
   const navigate = useNavigate();
   const chat = useOptionalChat();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const live = useNotifications();
+  const unreadCount = live?.unreadCount ?? 0;
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef(null);
   useOutsideClick(menuRef, () => setMenuOpen(false));
-
-  useEffect(() => {
-    let cancelled = false;
-    notificationsApi.list({ unreadOnly: true, pageSize: 1 })
-      .then((res) => { if (!cancelled) setUnreadCount(res.meta?.unreadCount ?? 0); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
 
   // People with more than one role pick which one they are acting as; the
   // menu, pages and permissions all follow it.
@@ -96,7 +89,7 @@ export function Topbar({ onMenuClick }) {
           aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
           className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
         >
-          <Bell size={18} aria-hidden="true" />
+          <Bell size={18} className={unreadCount > 0 ? 'origin-top animate-[wiggle_0.6s_ease-in-out_1]' : undefined} aria-hidden="true" />
           {unreadCount > 0 && (
             <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
               {unreadCount > 9 ? '9+' : unreadCount}

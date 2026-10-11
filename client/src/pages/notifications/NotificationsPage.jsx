@@ -8,6 +8,8 @@ import { LoadingState } from '../../components/ui/Spinner.jsx';
 import { Pagination } from '../../components/ui/Pagination.jsx';
 import { notificationsApi } from '../../api/notifications.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useNotifications } from '../../contexts/NotificationsContext.jsx';
+import { useSearchParams } from 'react-router-dom';
 import { CAN_VIEW_ALL_NOTIFICATIONS, canAny } from '../../config/capabilities.js';
 
 const dateTimeFmt = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
@@ -43,7 +45,10 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
-  const [openId, setOpenId] = useState(null);
+  const live = useNotifications();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [openId, setOpenId] = useState(searchParams.get('open'));
+  const [desktopAlerts, setDesktopAlerts] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -56,6 +61,17 @@ export default function NotificationsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // A new notification arrives while this page is open: it appears at once.
+  useEffect(() => live?.subscribe(() => { if (page === 1) load(); }), [live, page, load]);
+  // Opened from a toast or a desktop alert: show that notification, then tidy the address.
+  useEffect(() => {
+    if (searchParams.get('open')) { setOpenId(searchParams.get('open')); setSearchParams({}, { replace: true }); }
+  }, [searchParams, setSearchParams]);
+
+  const enableDesktopAlerts = async () => {
+    try { setDesktopAlerts(await Notification.requestPermission()); } catch { /* unsupported */ }
+  };
+
   const unreadCount = meta.unreadCount ?? 0;
   const effectiveViewAll = canViewAll && viewAll;
 
@@ -67,6 +83,7 @@ export default function NotificationsPage() {
     try {
       const updated = await notificationsApi.markRead(notification.id);
       setNotifications((prev) => prev.map((n) => (n.id === notification.id ? updated.data : n)));
+      live?.refreshCount();
     } catch {
       // Marking read is a soft, non-critical action — a failed request just
       // leaves the item unread; the user can retry by clicking again.
@@ -77,6 +94,7 @@ export default function NotificationsPage() {
     setMarkingAll(true);
     try {
       await notificationsApi.markAllRead();
+      live?.setUnreadCount(0);
       load();
     } finally {
       setMarkingAll(false);
@@ -109,6 +127,9 @@ export default function NotificationsPage() {
             />
             Unread only
           </label>
+          {desktopAlerts === 'default' && (
+            <button type="button" onClick={enableDesktopAlerts} className="ml-auto text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Turn on desktop alerts</button>
+          )}
           {canViewAll && (
             <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
               <input

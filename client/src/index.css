@@ -139,3 +139,11 @@ select:-webkit-autofill {
   box-shadow: 0 0 0 1000px #0f172a inset;
   -webkit-box-shadow: 0 0 0 1000px #0f172a inset;
 }
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-5deg); }
+}

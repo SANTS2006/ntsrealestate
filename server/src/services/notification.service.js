@@ -11,6 +11,7 @@ import { sendMail } from '../integrations/email/mailer.js';
 import { findOrganizationById } from '../repositories/organization.repository.js';
 import { notificationEmail } from '../integrations/email/templates.js';
 import { logger } from '../config/logger.js';
+import { emitToActor } from '../realtime/hub.js';
 
 function serializeNotification(notification) {
   return {
@@ -39,7 +40,10 @@ function serializeNotification(notification) {
 export async function notify({ organizationId, userId, type, title, message, sendEmail = true }) {
   if (!userId) return; // e.g. a tenant with no linked user account yet
   try {
-    await createNotification({ organizationId, userId, type, title, message });
+    const created = await createNotification({ organizationId, userId, type, title, message });
+    // Live: every open tab/device of this person hears about it straight away
+    // (nothing happens if they are offline — they see it on their next visit).
+    emitToActor(`u:${userId}`, 'notification:new', serializeNotification(created));
   } catch (err) {
     logger.error({ err, userId, type }, 'failed to create notification');
   }
@@ -86,11 +90,13 @@ export async function listNotifications(actingUser, organizationId, { page, page
 export async function markAsRead(id, userId) {
   const result = await markNotificationRead(id, userId);
   if (result.count === 0) throw AppError.notFound('Notification not found.');
+  emitToActor(`u:${userId}`, 'notification:read', { id });
   return { read: true };
 }
 
 export async function markAllAsRead(userId, organizationId) {
   const result = await markAllNotificationsRead(userId, organizationId);
+  emitToActor(`u:${userId}`, 'notification:read-all', {});
   return { markedRead: result.count };
 }
 
