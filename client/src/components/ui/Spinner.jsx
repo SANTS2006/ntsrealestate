@@ -34,8 +34,8 @@ export function LogoSpinner({ size = 56, className }) {
           src={src}
           alt={alt}
           onError={() => setErrored(true)}
-          className="rounded-full bg-white object-contain p-0.5"
-          style={{ width: size * 0.66, height: size * 0.66 }}
+          className={clsx('rounded-xl', src === NTS_LOGO ? 'object-cover' : 'bg-white object-contain p-0.5')}
+          style={{ width: size * 0.62, height: size * 0.62 }}
         />
       )}
     </span>

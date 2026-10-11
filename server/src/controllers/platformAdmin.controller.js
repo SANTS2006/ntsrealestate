@@ -5,6 +5,7 @@ import * as accountService from '../services/platformAdminAccount.service.js';
 import { listPlatformAuditLogs } from '../services/platformAudit.service.js';
 import { parsePagination } from '../utils/pagination.js';
 import * as maintenanceService from '../services/maintenanceMode.service.js';
+import * as avatarService from '../services/platformAdminAvatar.service.js';
 
 export const login = asyncHandler(async (req, res) => {
   const result = await platformAdminService.loginPlatformAdmin(req.body, req);
@@ -115,4 +116,22 @@ export const getMaintenance = asyncHandler(async (req, res) => {
 export const setMaintenance = asyncHandler(async (req, res) => {
   const data = await maintenanceService.setMaintenance(req.body, req.platformAdmin, req);
   sendSuccess(res, { data, message: data.enabled ? 'Maintenance mode is on.' : 'Maintenance mode is off.' });
+});
+
+export const uploadAvatar = asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await avatarService.setAvatar(req.platformAdmin, req.file, req), message: 'Profile picture updated.' });
+});
+
+export const removeAvatar = asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await avatarService.removeAvatar(req.platformAdmin, req), message: 'Profile picture removed.' });
+});
+
+// Any signed-in platform admin may see another's picture (it appears next to
+// their name in lists). Served with the stored, sniffed type and nosniff.
+export const getAvatar = asyncHandler(async (req, res) => {
+  const { mimeType, data } = await avatarService.getAvatar(req.params.id);
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, max-age=86400');
+  res.send(data);
 });

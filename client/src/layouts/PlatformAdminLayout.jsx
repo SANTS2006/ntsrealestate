@@ -10,6 +10,7 @@ import { useBranding } from '../contexts/BrandingContext.jsx';
 import { ChatProvider, useOptionalChat } from '../contexts/ChatContext.jsx';
 import { CallProvider } from '../contexts/CallContext.jsx';
 import { CallOverlay } from '../components/chat/CallOverlay.jsx';
+import { AdminAvatar } from '../components/platformAdmin/AdminAvatar.jsx';
 
 const NAV = [
   { to: '/platform-admin', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -54,9 +55,7 @@ function PlatformShell() {
   const brand = (onClose) => (
     <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white px-1 ring-1 ring-slate-200">
-          <img src="/logo-nts.png" alt="NTS Digital Solutions" className="h-6 w-auto" />
-        </span>
+        <img src="/logo-nts.png" alt="NTS Digital Solutions" className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0">
           <p className="truncate text-base font-semibold leading-tight text-slate-900 dark:text-slate-100">NTS RealEstate</p>
           <p className="truncate text-xs leading-tight text-slate-500 dark:text-slate-400">Platform console</p>
@@ -117,7 +116,7 @@ function PlatformShell() {
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open menu" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
               <Menu size={20} aria-hidden="true" />
             </button>
-            <img src="/logo-nts.png" alt="" className="h-7 w-auto rounded-lg bg-white px-1 ring-1 ring-slate-200" />
+            <img src="/logo-nts.png" alt="" className="h-8 w-8 rounded-lg" />
             <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">NTS Real Estate System</span>
           </div>
           <p className="hidden text-base font-semibold text-slate-900 dark:text-slate-100 lg:block">NTS Real Estate System</p>
@@ -152,12 +151,11 @@ function AccountMenu({ admin, onSignOut }) {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
-  const initials = `${admin?.firstName?.[0] ?? ''}${admin?.lastName?.[0] ?? ''}`.toUpperCase();
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu" className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
         <span className="relative shrink-0">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-600 to-accent-600 text-sm font-semibold text-white">{initials}</span>
+          <AdminAvatar admin={admin} size={36} />
           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" aria-hidden="true" />
         </span>
         <span className="hidden min-w-0 text-left sm:block">

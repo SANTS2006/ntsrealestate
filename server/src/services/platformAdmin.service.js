@@ -70,7 +70,7 @@ export async function loginPlatformAdmin({ email, password }, req) {
 
   logger.info({ platformAdminId: admin.id }, 'platform admin logged in');
   await platformAudit({ actor: admin, action: 'auth.login', req });
-  return { admin: { id: admin.id, firstName: admin.firstName, lastName: admin.lastName, email: admin.email } };
+  return { admin: { id: admin.id, firstName: admin.firstName, lastName: admin.lastName, email: admin.email, avatarUpdatedAt: admin.avatarUpdatedAt } };
 }
 
 export function logoutPlatformAdmin(req) {

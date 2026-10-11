@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authRateLimiter } from '../../middleware/security.js';
 import { csrfProtection } from '../../middleware/csrf.js';
 import { authenticatePlatformAdmin } from '../../middleware/platformAdminAuth.js';
-import { singleFileUpload } from '../../middleware/upload.js';
+import { singleFileUpload, limitedFileUpload } from '../../middleware/upload.js';
 import { validate } from '../../middleware/validate.js';
 import * as platformAdminController from '../../controllers/platformAdmin.controller.js';
 import * as backupController from '../../controllers/backup.controller.js';
@@ -22,6 +22,10 @@ platformAdminRouter.post('/auth/forgot-password', authRateLimiter(), csrfProtect
 platformAdminRouter.post('/auth/reset-password', authRateLimiter(), csrfProtection, validate(platformResetPasswordSchema), platformAdminController.resetPassword);
 platformAdminRouter.post('/auth/change-password', authRateLimiter(), authenticatePlatformAdmin, csrfProtection, validate(platformChangePasswordSchema), platformAdminController.changePassword);
 platformAdminRouter.patch('/auth/profile', authenticatePlatformAdmin, csrfProtection, validate(platformProfileSchema), platformAdminController.updateProfile);
+
+platformAdminRouter.post('/auth/avatar', authenticatePlatformAdmin, csrfProtection, limitedFileUpload('avatar', 2 * 1024 * 1024), platformAdminController.uploadAvatar);
+platformAdminRouter.delete('/auth/avatar', authenticatePlatformAdmin, csrfProtection, platformAdminController.removeAvatar);
+platformAdminRouter.get('/admins/:id/avatar', authenticatePlatformAdmin, validate(organizationIdParamSchema), platformAdminController.getAvatar);
 
 platformAdminRouter.get('/maintenance', authenticatePlatformAdmin, platformAdminController.getMaintenance);
 platformAdminRouter.put('/maintenance', authenticatePlatformAdmin, csrfProtection, validate(maintenanceSchema), platformAdminController.setMaintenance);

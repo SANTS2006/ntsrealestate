@@ -23,3 +23,17 @@ export function singleFileUpload(fieldName) {
     });
   };
 }
+
+// For small, single images (profile pictures): a tight size cap is applied while
+// the upload is still streaming in, so an oversized file is never held in memory.
+export function limitedFileUpload(fieldName, maxBytes) {
+  const small = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxBytes, files: 1 } });
+  const middleware = small.single(fieldName);
+  return (req, res, next) => {
+    middleware(req, res, (err) => {
+      if (!err) return next();
+      if (err.code === 'LIMIT_FILE_SIZE') return next(AppError.badRequest(`The image is too large. The limit is ${Math.round(maxBytes / 1048576)} MB.`));
+      return next(AppError.badRequest('File upload failed.'));
+    });
+  };
+}

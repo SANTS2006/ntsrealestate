@@ -27,9 +27,7 @@ export function PlatformAuthShell({ title, subtitle = 'NTS Real Estate System', 
         <div className="w-full max-w-sm">
           <div className="rounded-2xl border border-white/60 bg-white/70 p-8 shadow-xl backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/60">
             <div className="mb-6 flex flex-col items-center gap-3 text-center">
-              <span className="flex items-center justify-center rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200">
-                <img src="/logo-nts.png" alt="NTS Digital Solutions" className="h-12 w-auto" />
-              </span>
+              <img src="/logo-nts.png" alt="NTS Digital Solutions" className="h-16 w-16 rounded-2xl shadow-md" />
               <div>
                 <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
