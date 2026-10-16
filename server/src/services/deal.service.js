@@ -6,6 +6,8 @@ import { audit } from './audit.service.js';
 import { notify } from './notification.service.js';
 import { getSalesScope, dealScopeWhere, dealStaffUserIds } from './salesScope.service.js';
 import { ensureTenantRecord, requestRental } from './rental.service.js';
+import { findInstallmentsForDeal, findInstallmentsForDeals } from '../repositories/dealInstallment.repository.js';
+import { describeInstallments, summarizeInstallments } from './dealPlan.js';
 
 const num = (v) => (v === null || v === undefined ? null : Number(v));
 const KIND_LABEL = { rent: 'rent', buy: 'buy', lease: 'lease' };
@@ -26,9 +28,28 @@ function subjectOf(deal) {
   return { type: 'unknown', title: 'Removed listing' };
 }
 
-function serializeDeal(deal, paid = 0) {
+function serializePlan(deal, installments) {
+  if (!deal.paymentFrequency && (!installments || installments.length === 0)) return null;
+  const rows = (installments ?? []).map((i) => ({ ...i, amount: Number(i.amount), paidAmount: Number(i.paidAmount) }));
+  return {
+    startDate: deal.startDate,
+    endDate: deal.endDate,
+    frequency: deal.paymentFrequency,
+    installmentAmount: num(deal.installmentAmount),
+    securityDeposit: num(deal.securityDeposit),
+    renewalCount: deal.renewalCount,
+    renewalRequestedAt: deal.renewalRequestedAt,
+    ...summarizeInstallments(rows),
+  };
+}
+
+function serializeDeal(deal, paid = 0, installments = null) {
   const price = num(deal.price);
   return {
+    plan: serializePlan(deal, installments),
+    endedAt: deal.endedAt,
+    endReason: deal.endReason,
+    endNote: deal.endNote,
     id: deal.id,
     kind: deal.kind,
     status: deal.status,
@@ -84,11 +105,12 @@ export async function requestDeal(actingUser, { kind, unitId, landId, notes }, r
     if (!deal) {
       deal = await prisma.deal.create({
         data: {
-          organizationId, kind: 'rent', status: 'approved', tenantId: tenant.id, unitId, propertyId: unit.building.propertyId,
+          organizationId, kind: 'rent', status: 'pending', tenantId: tenant.id, unitId, propertyId: unit.building.propertyId,
           ownerId: unit.building.property.ownerId, price: unit.monthlyRent,
         },
         include: DEAL_INCLUDE,
       });
+      await announce(deal, { ownerId: unit.building.property.ownerId, propertyId: unit.building.propertyId }, `${tenant.firstName} ${tenant.lastName} wants to rent ${unitTitle(unit)}.`, req, actingUser);
     }
     return { deal: serializeDeal(deal), rental, alreadyHeld };
   }
@@ -193,17 +215,26 @@ export async function listDeals(organizationId, actingUser, { page, pageSize, sk
     prisma.deal.count({ where }),
   ]);
   const paid = await paidByDeal(deals.map((d) => d.id));
-  return { deals: deals.map((d) => serializeDeal(d, paid.get(d.id) ?? 0)), meta: buildPaginationMeta({ page, pageSize, total }) };
+  const planned = deals.filter((d) => d.kind !== 'buy').map((d) => d.id);
+  const byDeal = new Map();
+  for (const row of await findInstallmentsForDeals(planned)) {
+    if (!byDeal.has(row.dealId)) byDeal.set(row.dealId, []);
+    byDeal.get(row.dealId).push(row);
+  }
+  return { deals: deals.map((d) => serializeDeal(d, paid.get(d.id) ?? 0, byDeal.get(d.id) ?? [])), meta: buildPaginationMeta({ page, pageSize, total }) };
 }
 
 export async function getDeal(id, organizationId, actingUser) {
   const deal = await loadDeal(id, organizationId, actingUser);
-  const [paid, payments] = await Promise.all([
+  const [paid, payments, installments] = await Promise.all([
     paidByDeal([id]),
     prisma.payment.findMany({ where: { dealId: id }, orderBy: { paymentDate: 'desc' }, take: 100 }),
+    findInstallmentsForDeal(id),
   ]);
   return {
-    ...serializeDeal(deal, paid.get(id) ?? 0),
+    ...serializeDeal(deal, paid.get(id) ?? 0, installments),
+    installments: describeInstallments(installments.map((i) => ({ ...i, amount: Number(i.amount), paidAmount: Number(i.paidAmount) })))
+      .map((i) => ({ id: i.id, sequence: i.sequence, dueDate: i.dueDate, amount: i.amount, paidAmount: i.paidAmount, balance: i.balance, status: i.displayStatus, paidAt: i.paidAt })),
     payments: payments.map((p) => ({ id: p.id, amount: num(p.amount), currency: p.currency, paymentDate: p.paymentDate, paymentMethod: p.paymentMethod, reference: p.reference, status: p.status })),
   };
 }
@@ -219,6 +250,12 @@ const TRANSITIONS = { pending: ['approved', 'cancelled'], approved: ['completed'
 
 export async function updateDealStatus(id, status, organizationId, actingUser, req) {
   const deal = await loadDeal(id, organizationId, actingUser);
+  // Ending a rental or lease frees the house, closes unpaid instalments and, if
+  // the customer has nothing else, their access — see rentalWorkflow.service.js.
+  if (deal.kind !== 'buy' && (status === 'cancelled' || status === 'completed')) {
+    const { endDeal } = await import('./rentalWorkflow.service.js');
+    return endDeal(id, { reason: status === 'cancelled' ? 'cancelled' : 'moved_out' }, organizationId, actingUser, req);
+  }
   if (!TRANSITIONS[deal.status].includes(status)) {
     throw AppError.conflict(`A ${deal.status} deal cannot be marked ${status}.`);
   }
@@ -258,6 +295,10 @@ export async function updateDealStatus(id, status, organizationId, actingUser, r
     }
   }, { timeout: 20_000 });
 
+  if (status === 'approved' && deal.kind !== 'buy') {
+    const { ensurePlan } = await import('./rentalWorkflow.service.js');
+    await ensurePlan(id);
+  }
   await audit({ organizationId, userId: actingUser.id, action: `deal.${status}`, entityType: 'deal', entityId: id, oldValues: { status: deal.status }, newValues: { status }, req });
   if (deal.tenant?.userId) {
     const what = subjectOf(deal).title;

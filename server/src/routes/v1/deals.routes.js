@@ -7,7 +7,8 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sendSuccess } from '../../utils/apiResponse.js';
 import { parsePagination } from '../../utils/pagination.js';
 import * as dealService from '../../services/deal.service.js';
-import { listDealsSchema, dealIdParamSchema, requestDealSchema, updateDealStatusSchema } from '../../validators/deal.validators.js';
+import * as workflow from '../../services/rentalWorkflow.service.js';
+import { listDealsSchema, dealIdParamSchema, requestDealSchema, updateDealStatusSchema, setPlanSchema, renewDealSchema, endDealSchema } from '../../validators/deal.validators.js';
 
 export const dealsRouter = Router();
 
@@ -29,4 +30,18 @@ dealsRouter.post('/request', csrfProtection, requirePermission('deals:create'), 
 }));
 dealsRouter.patch('/:id/status', csrfProtection, requirePermission('deals:update'), validate(updateDealStatusSchema), asyncHandler(async (req, res) => {
   sendSuccess(res, { data: await dealService.updateDealStatus(req.params.id, req.body.status, req.user.organizationId, req.user, req) });
+}));
+
+// The rent / lease workflow, after the request: plan → payments → renew or end.
+dealsRouter.put('/:id/plan', csrfProtection, requirePermission('deals:update'), validate(setPlanSchema), asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await workflow.setPlan(req.params.id, req.body, req.user.organizationId, req.user, req), message: 'Payment plan saved.' });
+}));
+dealsRouter.post('/:id/renew', csrfProtection, requirePermission('deals:update'), validate(renewDealSchema), asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await workflow.renewDeal(req.params.id, req.body, req.user.organizationId, req.user, req), message: 'Renewed.' });
+}));
+dealsRouter.post('/:id/renewal-request', csrfProtection, requirePermission('deals:read'), validate(dealIdParamSchema), asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await workflow.requestRenewal(req.params.id, req.user.organizationId, req.user, req), message: 'Your agent has been asked to renew.' });
+}));
+dealsRouter.post('/:id/end', csrfProtection, requirePermission('deals:update'), validate(endDealSchema), asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await workflow.endDeal(req.params.id, req.body, req.user.organizationId, req.user, req), message: 'Ended.' });
 }));

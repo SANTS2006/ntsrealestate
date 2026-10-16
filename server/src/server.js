@@ -6,6 +6,7 @@ import { closeSessionStore } from './config/session.js';
 import { ensurePermissionCatalogSeeded, syncBuiltInRoleGrants } from './services/permission.service.js';
 import { initRealtime } from './realtime/socket.js';
 import { startBackupScheduler, stopBackupScheduler } from './services/backup/scheduler.js';
+import { startRentalReminders, stopRentalReminders } from './services/rentalWorkflow.service.js';
 
 const app = createApp();
 
@@ -22,6 +23,7 @@ ensurePermissionCatalogSeeded()
     server.keepAliveTimeout = 65_000;
     initRealtime(server);
     startBackupScheduler();
+    startRentalReminders();
     warmDatabase();
     syncBuiltInRoleGrants().catch((err) => logger.error({ err }, 'could not update built-in role permissions'));
   })
@@ -33,6 +35,7 @@ ensurePermissionCatalogSeeded()
 async function shutdown(signal) {
   logger.info(`${signal} received — shutting down gracefully`);
   stopBackupScheduler();
+  stopRentalReminders();
   const closeAndExit = async () => {
     try {
       await disconnectDatabase();

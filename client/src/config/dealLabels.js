@@ -41,3 +41,22 @@ export const LAND_FEATURES = [
 ];
 
 export const labelFor = (list, value) => list.find((x) => x.value === value)?.label ?? value;
+
+export const FREQUENCY = {
+  monthly: { label: 'Monthly', every: 'every month', unit: 'month' },
+  yearly: { label: 'Yearly', every: 'every year', unit: 'year' },
+};
+
+export const INSTALLMENT_STATUS = {
+  pending: { label: 'Upcoming', tone: 'neutral' },
+  partial: { label: 'Part paid', tone: 'warning' },
+  paid: { label: 'Paid', tone: 'success' },
+  overdue: { label: 'Overdue', tone: 'danger' },
+  cancelled: { label: 'Cancelled', tone: 'neutral' },
+};
+
+export const END_REASONS = [
+  { value: 'moved_out', label: 'Moved out' },
+  { value: 'expired', label: 'Term finished, not renewing' },
+  { value: 'cancelled', label: 'Cancelled' },
+];

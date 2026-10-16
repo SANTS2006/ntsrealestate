@@ -8,6 +8,7 @@ import {
 import { findTenantById } from '../repositories/tenant.repository.js';
 import { findInvoiceById, applyPaymentDelta } from '../repositories/invoice.repository.js';
 import { findLeaseById } from '../repositories/lease.repository.js';
+import { recomputeInstallments } from '../repositories/dealInstallment.repository.js';
 import { findOrganizationById } from '../repositories/organization.repository.js';
 import { assertPropertyAccess, getRestrictedScope } from './resourceAccess.service.js';
 import { audit } from './audit.service.js';
@@ -113,6 +114,7 @@ export async function recordPayment(organizationId, body, actingUser, req) {
   if (body.dealId) {
     deal = await loadDealForPayment(body.dealId, organizationId, actingUser);
     if (deal.status === 'cancelled') throw AppError.conflict('This deal was cancelled, so no payment can be recorded on it.');
+    if (deal.status === 'completed' && deal.kind !== 'buy') throw AppError.conflict('This rental or lease has ended, so no payment can be recorded on it.');
     body = { ...body, tenantId: deal.tenantId };
     if (deal.kind !== 'rent') {
       const paidRows = await prisma.payment.aggregate({ where: { dealId: deal.id, status: 'completed' }, _sum: { amount: true } });
@@ -175,6 +177,8 @@ export async function recordPayment(organizationId, body, actingUser, req) {
     if (body.invoiceId) {
       await applyPaymentDelta(body.invoiceId, Number(body.amount), tx);
     }
+    // Every payment on a rent or lease is entered against its payment plan.
+    if (deal) await recomputeInstallments(tx, deal.id);
 
     return created;
     });
@@ -215,6 +219,7 @@ export async function refundPayment(id, organizationId, body, actingUser, req) {
     if (payment.invoiceId) {
       await applyPaymentDelta(payment.invoiceId, -Number(payment.amount), tx);
     }
+    if (payment.dealId) await recomputeInstallments(tx, payment.dealId);
   });
 
   await audit({ organizationId, userId: actingUser.id, action: 'payment.refunded', entityType: 'payment', entityId: id, oldValues: { status: 'completed' }, newValues: { status: 'refunded', reason: body?.reason }, req });

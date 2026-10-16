@@ -24,3 +24,33 @@ export const updateDealStatusSchema = z.object({
   params: z.object(uuidParam('id')),
   body: z.object({ status: z.enum(['approved', 'completed', 'cancelled']) }).strict(),
 });
+
+const isoDate = z.coerce.date();
+
+export const setPlanSchema = z.object({
+  params: z.object(uuidParam('id')),
+  body: z.object({
+    startDate: isoDate.optional(),
+    termMonths: z.number().int().min(1).max(600),
+    frequency: z.enum(['monthly', 'yearly']),
+    installmentAmount: z.number().positive().max(1_000_000_000),
+    securityDeposit: z.number().min(0).max(1_000_000_000).optional(),
+  }).strict(),
+});
+
+export const renewDealSchema = z.object({
+  params: z.object(uuidParam('id')),
+  body: z.object({
+    termMonths: z.number().int().min(1).max(600).optional(),
+    frequency: z.enum(['monthly', 'yearly']).optional(),
+    installmentAmount: z.number().positive().max(1_000_000_000).optional(),
+  }).strict(),
+});
+
+export const endDealSchema = z.object({
+  params: z.object(uuidParam('id')),
+  body: z.object({
+    reason: z.enum(['cancelled', 'moved_out', 'expired']),
+    note: z.string().trim().max(500).optional(),
+  }).strict(),
+});

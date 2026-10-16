@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Handshake, Check, Flag, XCircle, Wallet, Eye } from 'lucide-react';
+import { Handshake, Check, Flag, XCircle, Wallet, Eye, CalendarClock, RefreshCw, DoorOpen } from 'lucide-react';
 import { Card, CardBody } from '../../components/ui/Card.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
@@ -12,10 +12,13 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog.jsx';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../../components/ui/Table.jsx';
 import { DealPaymentModal } from '../../components/deals/DealPaymentModal.jsx';
 import { DealDetailModal } from '../../components/deals/DealDetailModal.jsx';
+import { DealPlanModal } from '../../components/deals/DealPlanModal.jsx';
+import { RenewDealModal } from '../../components/deals/RenewDealModal.jsx';
+import { EndDealModal } from '../../components/deals/EndDealModal.jsx';
 import { dealsApi } from '../../api/deals.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { hasPermission } from '../../config/capabilities.js';
-import { DEAL_KINDS, DEAL_STATUS } from '../../config/dealLabels.js';
+import { DEAL_KINDS, DEAL_STATUS, FREQUENCY } from '../../config/dealLabels.js';
 import { formatCurrency } from '../../utils/currency.js';
 
 // Everything people are renting, buying or leasing: houses and lands. Staff
@@ -36,6 +39,10 @@ export default function DealsPage({ mine = false }) {
   const [payDeal, setPayDeal] = useState(null);
   const [viewDeal, setViewDeal] = useState(null);
   const [confirm, setConfirm] = useState(null); // { deal, status }
+  const [planDeal, setPlanDeal] = useState(null);
+  const [renewDeal, setRenewDeal] = useState(null);
+  const [endDeal, setEndDeal] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -49,7 +56,7 @@ export default function DealsPage({ mine = false }) {
   useEffect(() => { load(); }, [load]);
 
   const verbs = {
-    approved: { title: 'Approve this request?', label: 'Approve', text: 'The customer is told it was approved. For a lease, the lease becomes active.' },
+    approved: { title: 'Approve this request?', label: 'Approve', text: 'The customer is told it was approved. A rental or lease becomes active, with a default payment plan you can change.' },
     completed: { title: 'Mark as completed?', label: 'Complete', text: 'The deal is finished. A sold house or land stops being listed.' },
     cancelled: { title: 'Cancel this request?', label: 'Cancel request', text: 'The house or land is made available again and the customer is told.' },
   };
@@ -79,6 +86,7 @@ export default function DealsPage({ mine = false }) {
       </Card>
 
       {error && <Alert variant="error">{error}</Alert>}
+      {notice && <Alert variant="success">{notice}</Alert>}
 
       <Card>
         {loading ? (
@@ -99,6 +107,7 @@ export default function DealsPage({ mine = false }) {
                   <Th>Price</Th>
                   <Th>Paid</Th>
                   <Th>Balance</Th>
+                  <Th>Plan</Th>
                   <Th>Status</Th>
                   <Th className="text-right">Actions</Th>
                 </Tr>
@@ -117,14 +126,28 @@ export default function DealsPage({ mine = false }) {
                       </Td>
                       <Td className="whitespace-nowrap">{formatCurrency(d.paid)}</Td>
                       <Td className="whitespace-nowrap">{d.kind === 'rent' ? '—' : formatCurrency(d.balance)}</Td>
+                      <Td className="whitespace-nowrap text-xs">
+                        {d.plan?.frequency ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span>{FREQUENCY[d.plan.frequency]?.label} · {formatCurrency(d.plan.installmentAmount)}</span>
+                            {d.plan.overdueCount > 0
+                              ? <Badge tone="danger">{d.plan.overdueCount} overdue</Badge>
+                              : d.plan.next && <span className="text-slate-400">Next {new Date(d.plan.next.dueDate).toLocaleDateString()}</span>}
+                            {d.plan.renewalRequestedAt && d.status === 'approved' && <Badge tone="warning">Renewal asked</Badge>}
+                          </div>
+                        ) : <span className="text-slate-400">{d.kind === 'buy' ? '—' : 'Not set'}</span>}
+                      </Td>
                       <Td><Badge tone={DEAL_STATUS[d.status].tone}>{DEAL_STATUS[d.status].label}</Badge></Td>
                       <Td>
                         <div className="flex flex-wrap items-center justify-end gap-2">
                           <Button variant="secondary" size="sm" onClick={() => setViewDeal(d)}><Eye size={14} aria-hidden="true" />View</Button>
                           {canPay && open && <Button variant="secondary" size="sm" onClick={() => setPayDeal(d)}><Wallet size={14} aria-hidden="true" />Record payment</Button>}
+                          {canUpdate && open && d.kind !== 'buy' && (d.paid === 0 || !d.plan) && <Button variant="secondary" size="sm" onClick={() => setPlanDeal(d)}><CalendarClock size={14} aria-hidden="true" />{d.plan ? 'Edit plan' : 'Set plan'}</Button>}
                           {canUpdate && d.status === 'pending' && <Button size="sm" onClick={() => setConfirm({ deal: d, status: 'approved' })}><Check size={14} aria-hidden="true" />Approve</Button>}
-                          {canUpdate && d.status === 'approved' && <Button size="sm" onClick={() => setConfirm({ deal: d, status: 'completed' })}><Flag size={14} aria-hidden="true" />Complete</Button>}
-                          {canUpdate && open && <Button variant="danger" size="sm" onClick={() => setConfirm({ deal: d, status: 'cancelled' })}><XCircle size={14} aria-hidden="true" />Cancel</Button>}
+                          {canUpdate && d.status === 'approved' && d.kind !== 'buy' && <Button variant="secondary" size="sm" onClick={() => setRenewDeal(d)}><RefreshCw size={14} aria-hidden="true" />Renew</Button>}
+                          {canUpdate && d.status === 'approved' && d.kind === 'buy' && <Button size="sm" onClick={() => setConfirm({ deal: d, status: 'completed' })}><Flag size={14} aria-hidden="true" />Complete</Button>}
+                          {canUpdate && open && d.kind !== 'buy' && <Button variant="danger" size="sm" onClick={() => setEndDeal(d)}><DoorOpen size={14} aria-hidden="true" />{d.status === 'pending' ? 'Decline' : 'End'}</Button>}
+                          {canUpdate && open && d.kind === 'buy' && <Button variant="danger" size="sm" onClick={() => setConfirm({ deal: d, status: 'cancelled' })}><XCircle size={14} aria-hidden="true" />Cancel</Button>}
                         </div>
                       </Td>
                     </Tr>
@@ -137,7 +160,10 @@ export default function DealsPage({ mine = false }) {
         )}
       </Card>
 
-      <DealDetailModal dealId={viewDeal?.id} onClose={() => setViewDeal(null)} />
+      <DealDetailModal dealId={viewDeal?.id} onClose={() => setViewDeal(null)} canRequestRenewal={mine} onChanged={load} />
+      <DealPlanModal deal={planDeal} onClose={() => setPlanDeal(null)} onSaved={() => { setNotice('Payment plan saved.'); load(); }} />
+      <RenewDealModal deal={renewDeal} onClose={() => setRenewDeal(null)} onSaved={() => { setNotice('Renewed. The customer has been told.'); load(); }} />
+      <EndDealModal deal={endDeal} onClose={() => setEndDeal(null)} onEnded={(res) => { setNotice(res.accessClosed ? 'Ended. The house is available again and the customer\'s sign-in has been closed.' : 'Ended. The house is available again.'); load(); }} />
       <DealPaymentModal deal={payDeal} onClose={() => setPayDeal(null)} onSaved={load} />
       <ConfirmDialog
         open={Boolean(confirm)}

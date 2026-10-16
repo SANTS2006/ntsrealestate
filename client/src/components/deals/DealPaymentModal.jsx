@@ -24,7 +24,7 @@ export function DealPaymentModal({ deal, onClose, onSaved }) {
 
   useEffect(() => {
     if (!deal) return;
-    reset({ amount: deal.kind === 'rent' ? deal.price : deal.balance || '', paymentMethod: 'cash', reference: '' });
+    reset({ amount: deal.plan?.next ? deal.plan.next.amountDue : deal.kind === 'rent' ? deal.price : deal.balance || '', paymentMethod: 'cash', reference: '' });
     setServerError(null);
   }, [deal, reset]);
 
@@ -45,7 +45,7 @@ export function DealPaymentModal({ deal, onClose, onSaved }) {
         <div className="mb-4 grid grid-cols-3 gap-3 rounded-lg bg-slate-50 p-3 text-center text-xs dark:bg-slate-800/50">
           <div><p className="text-slate-400">Price</p><p className="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(deal.price)}</p></div>
           <div><p className="text-slate-400">Paid</p><p className="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(deal.paid)}</p></div>
-          <div><p className="text-slate-400">Balance</p><p className="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{deal.kind === 'rent' ? '—' : formatCurrency(deal.balance)}</p></div>
+          <div><p className="text-slate-400">{deal.plan?.next ? 'Next due' : 'Balance'}</p><p className="mt-0.5 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{deal.plan?.next ? formatCurrency(deal.plan.next.amountDue) : deal.kind === 'rent' ? '—' : formatCurrency(deal.balance)}</p></div>
         </div>
       )}
       {serverError && <Alert variant="error" className="mb-4">{serverError}</Alert>}
