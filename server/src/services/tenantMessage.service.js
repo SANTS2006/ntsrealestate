@@ -3,10 +3,9 @@ import { buildPaginationMeta } from '../utils/pagination.js';
 import {
   createTenantMessage, findTenantMessagesForRecipient, countTenantMessagesForRecipient,
   findTenantMessagesForOrganization, countTenantMessagesForOrganization,
-  findTenantMessageById, markTenantMessageRead, findTenantMessagesForTenant, countTenantMessagesForTenant, findMaintenanceManagerIds,
+  findTenantMessageById, markTenantMessageRead, findTenantMessagesForTenant, countTenantMessagesForTenant,
 } from '../repositories/tenantMessage.repository.js';
 import { findTenantByUserId, findPropertyIdForTenant } from '../repositories/tenant.repository.js';
-import { findAgentAssignmentsForProperty } from '../repositories/propertyAssignment.repository.js';
 import { findPropertyById } from '../repositories/property.repository.js';
 import { notify } from './notification.service.js';
 import { prisma } from '../config/database.js';
@@ -23,39 +22,71 @@ function serializeMessage(message) {
   };
 }
 
-// One tenant compose action can reach more than one agent (a property can
-// have multiple assigned agents) — a TenantMessage row is created per
-// recipient so each agent's inbox query stays a simple recipientId filter,
-// and each gets their own in-app notification + email.
+// Who a tenant's message reaches: the agents connected to the places the
+// tenant rents or leases (assigned to the property, or linked to its owner),
+// and the administrators, who also see every message in their own feed. A
+// TenantMessage row is created per recipient so each person's inbox stays a
+// simple "addressed to me" filter. With no agent connected yet, the message
+// goes to the administrators, so it is never lost.
+async function connectedPropertyIds(tenant, organizationId) {
+  const [rentals, deals, leases] = await Promise.all([
+    prisma.tenantRental.findMany({ where: { tenantId: tenant.id, organizationId, status: 'active' }, select: { propertyId: true } }),
+    prisma.deal.findMany({ where: { tenantId: tenant.id, organizationId, kind: { in: ['rent', 'lease'] }, status: { in: ['pending', 'approved'] }, propertyId: { not: null } }, select: { propertyId: true } }),
+    prisma.lease.findMany({ where: { tenantId: tenant.id, organizationId, status: { in: ['active', 'expiring_soon', 'draft'] } }, select: { unit: { select: { building: { select: { propertyId: true } } } } } }),
+  ]);
+  const ids = new Set([...rentals.map((r) => r.propertyId), ...deals.map((d) => d.propertyId), ...leases.map((l) => l.unit?.building?.propertyId)].filter(Boolean));
+  const primary = await findPropertyIdForTenant(tenant.id, organizationId);
+  if (primary) ids.add(primary);
+  return [...ids];
+}
+
+async function agentsForProperties(propertyIds, organizationId) {
+  if (propertyIds.length === 0) return [];
+  const [assigned, viaOwner] = await Promise.all([
+    prisma.propertyAssignment.findMany({
+      where: { organizationId, propertyId: { in: propertyIds }, user: { status: 'active', userRoles: { some: { role: { name: 'agent' } } } } },
+      select: { userId: true },
+    }),
+    prisma.ownerAgent.findMany({
+      where: { organizationId, status: 'active', agent: { status: 'active' }, owner: { properties: { some: { id: { in: propertyIds } } } } },
+      select: { agentUserId: true },
+    }),
+  ]);
+  return [...new Set([...assigned.map((a) => a.userId), ...viaOwner.map((o) => o.agentUserId)])];
+}
+
 export async function sendTenantMessage(actingUser, content) {
-  const tenant = await findTenantByUserId(actingUser.id, actingUser.organizationId);
+  const organizationId = actingUser.organizationId;
+  const tenant = await findTenantByUserId(actingUser.id, organizationId);
   if (!tenant) throw AppError.badRequest('No tenant record is linked to your account. Contact an administrator.');
 
-  const propertyId = await findPropertyIdForTenant(tenant.id, actingUser.organizationId);
-  if (!propertyId) throw AppError.badRequest('You are not currently linked to a property. Contact an administrator.');
+  const propertyIds = await connectedPropertyIds(tenant, organizationId);
+  const agentIds = await agentsForProperties(propertyIds, organizationId);
+  const admins = await prisma.user.findMany({
+    where: { organizationId, status: 'active', userRoles: { some: { role: { name: 'administrator' } } } },
+    select: { id: true }, take: 25,
+  });
+  const adminIds = admins.map((a) => a.id);
 
-  // Reaches the agents on the property and every maintenance manager; the
-  // administrator sees all tenant messages in the organisation-wide feed.
-  const assignments = await findAgentAssignmentsForProperty(propertyId, actingUser.organizationId);
-  const managerIds = await findMaintenanceManagerIds(actingUser.organizationId);
-  const recipientIds = [...new Set([...assignments.map((a) => a.userId), ...managerIds])];
-  if (recipientIds.length === 0) throw AppError.badRequest('No property or maintenance manager is available for your property yet. Contact an administrator.');
+  // Rows: the agents; and the administrators too when there is nobody else (they see the org-wide feed regardless).
+  const rowRecipients = agentIds.length > 0 ? agentIds : adminIds;
+  if (rowRecipients.length === 0) throw AppError.badRequest('No agent or administrator is available to receive your message yet. Please try again later.');
 
-  const property = await findPropertyById(propertyId, actingUser.organizationId);
+  const propertyId = propertyIds[0] ?? null;
+  const property = propertyId ? await findPropertyById(propertyId, organizationId) : null;
   const tenantName = `${tenant.firstName} ${tenant.lastName}`;
 
-  await Promise.all(recipientIds.map((userId) =>
-    createTenantMessage({ organizationId: actingUser.organizationId, tenantId: tenant.id, recipientId: userId, propertyId, content })
+  await Promise.all(rowRecipients.map((userId) =>
+    createTenantMessage({ organizationId, tenantId: tenant.id, recipientId: userId, propertyId, content })
   ));
 
-  for (const userId of recipientIds) {
-    await notify({
-      organizationId: actingUser.organizationId, userId, type: 'tenant_message',
-      title: `New message from ${tenantName}`, message: `${property?.name ? `[${property.name}] ` : ''}${content}`,
-    });
-  }
+  const notifyIds = [...new Set([...agentIds, ...adminIds])];
+  await Promise.all(notifyIds.map((userId) => notify({
+    organizationId, userId, type: 'tenant_message',
+    title: `New message from ${tenantName}`, message: `${property?.name ? `[${property.name}] ` : ''}${content}`,
+  })));
 
-  return { sent: recipientIds.length };
+  return { sent: rowRecipients.length, notified: notifyIds.length };
 }
 
 export async function listInbox(organizationId, actingUser, { page, pageSize, skip, take }) {

@@ -37,7 +37,7 @@ export const platformAdminApi = {
   listOrganizations: () => apiClient.get('/platform-admin/organizations'),
   getOrganization: (id) => apiClient.get(`/platform-admin/organizations/${id}`),
   createOrganization: (formData) =>
-    apiClient.post('/platform-admin/organizations', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    apiClient.post('/platform-admin/organizations', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 }),
   updateOrganization: (id, body) => apiClient.patch(`/platform-admin/organizations/${id}`, body),
   setOrganizationStatus: (id, status) => apiClient.patch(`/platform-admin/organizations/${id}/status`, { status }),
   sendOrganizationAdminReset: (id, userId) => apiClient.post(`/platform-admin/organizations/${id}/send-admin-reset`, { userId }),

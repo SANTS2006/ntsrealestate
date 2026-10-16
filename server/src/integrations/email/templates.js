@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { appBaseUrl } from '../../utils/appUrl.js';
 
 const dateTimeFmt = new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeStyle: 'short' });
 
@@ -17,7 +18,7 @@ function safeColor(value, fallback) {
 }
 
 export function orgUrl(org, path = '/login') {
-  return `${env.CLIENT_URL}/${org.slug}${path}`;
+  return `${appBaseUrl()}/${org.slug}${path}`;
 }
 
 // Shared branded shell for every transactional email — a navy header band
@@ -325,7 +326,7 @@ export function generalContactEmail({ org, firstName, lastName, email, phone, me
 // NTS Real Estate System identity and link to the platform admin console.
 
 export function platformAdminResetEmail(token) {
-  const url = `${env.CLIENT_URL}/platform-admin/reset-password?token=${token}`;
+  const url = `${appBaseUrl()}/platform-admin/reset-password?token=${token}`;
   const now = new Date();
   const expires = new Date(now.getTime() + 15 * 60 * 1000);
   return {
@@ -347,7 +348,7 @@ export function platformAdminResetEmail(token) {
 }
 
 export function platformAdminInviteEmail(token, { invitedByName }) {
-  const url = `${env.CLIENT_URL}/platform-admin/reset-password?token=${token}`;
+  const url = `${appBaseUrl()}/platform-admin/reset-password?token=${token}`;
   const inviter = escapeHtml(invitedByName);
   return {
     subject: `You've been added as a ${PLATFORM_NAME} platform admin`,

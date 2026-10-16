@@ -19,12 +19,12 @@ import { findUserByEmailGlobal, createUser, findUserById } from '../repositories
 import { generateRawToken } from '../auth/crypto.js';
 import { createPasswordResetToken, invalidateOutstandingResetTokens } from '../repositories/passwordResetToken.repository.js';
 import { passwordResetEmail } from '../integrations/email/templates.js';
-import { findRoleByName, assignRoleToUser } from '../repositories/role.repository.js';
+import { assignRoleToUser } from '../repositories/role.repository.js';
 import { bootstrapDefaultRoles } from './role.service.js';
 import { generateUniqueReferralCode } from '../utils/referralCode.js';
 import { logger } from '../config/logger.js';
 import { platformAudit } from './platformAudit.service.js';
-import { env } from '../config/env.js';
+import { appBaseUrl } from '../utils/appUrl.js';
 import { signMfaChallengeToken } from '../auth/jwt.js';
 
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
@@ -193,25 +193,27 @@ export async function createOrganizationByPlatformAdmin({
   const slugError = assertValidSlug(slug);
   if (slugError) throw AppError.badRequest(slugError);
 
-  const existingSlug = await findOrganizationBySlug(slug);
-  if (existingSlug) throw AppError.conflict('That URL name is already taken by another organization.');
-
-  const existingUser = await findUserByEmailGlobal(adminEmail);
-  if (existingUser) throw AppError.conflict('An account with this administrator email already exists.');
-
+  // Every database round trip is slow on a serverless database, so the checks
+  // and the password work run side by side instead of one after another.
   const year = new Date().getFullYear();
   const defaultPassword = generateDefaultAdminPassword(name, year);
-  const passwordHash = await hashPassword(defaultPassword);
-  const referralCode = await generateUniqueReferralCode(adminFirstName);
+  const [existingSlug, existingUser, passwordHash, referralCode] = await Promise.all([
+    findOrganizationBySlug(slug),
+    findUserByEmailGlobal(adminEmail),
+    hashPassword(defaultPassword),
+    generateUniqueReferralCode(adminFirstName),
+  ]);
+  if (existingSlug) throw AppError.conflict('That URL name is already taken by another organization.');
+  if (existingUser) throw AppError.conflict('An account with this administrator email already exists.');
 
   const { organization, adminUser } = await prisma.$transaction(async (tx) => {
     const org = await createOrganization({
       name, slug, email: adminEmail, primaryColor, secondaryColor, status: 'active',
     }, tx);
 
-    await bootstrapDefaultRoles(org.id, tx);
-    const adminRole = await findRoleByName(org.id, 'administrator', tx);
-    if (!adminRole) throw AppError.internal('Failed to set up the default administrator role.');
+    const roleIds = await bootstrapDefaultRoles(org.id, tx);
+    const adminRole = { id: roleIds.administrator };
+    if (!adminRole.id) throw AppError.internal('Failed to set up the default administrator role.');
 
     const user = await createUser({
       organizationId: org.id, firstName: adminFirstName, lastName: adminLastName, email: adminEmail,
@@ -233,18 +235,16 @@ export async function createOrganizationByPlatformAdmin({
     }
   }
 
-  const loginUrl = `${env.CLIENT_URL}/${slug}/login`;
-  try {
-    const { subject, html, text } = organizationCreatedEmail({
-      org: organization, adminFirstName, loginEmail: adminEmail, defaultPassword, loginUrl,
-    });
-    await sendMail({ to: adminEmail, subject, html, text });
-  } catch (err) {
-    logger.error({ err, organizationId: organization.id }, 'failed to send organization-created email');
-  }
+  const loginUrl = `${appBaseUrl()}/${slug}/login`;
+  // The organization already exists and works: sending the welcome email and
+  // writing the audit entry happen in the background so they never hold up the answer.
+  const { subject, html, text } = organizationCreatedEmail({
+    org: organization, adminFirstName, loginEmail: adminEmail, defaultPassword, loginUrl,
+  });
+  sendMail({ to: adminEmail, subject, html, text }).catch((err) => logger.error({ err, organizationId: organization.id }, 'failed to send organization-created email'));
+  platformAudit({ actor, action: 'organization.created', targetType: 'organization', targetId: organization.id, targetLabel: name, details: { slug, adminEmail }, req });
 
   logger.info({ organizationId: organization.id, slug }, 'organization created by platform admin');
-  await platformAudit({ actor, action: 'organization.created', targetType: 'organization', targetId: organization.id, targetLabel: name, details: { slug, adminEmail }, req });
   return { organization: serializeOrganizationForPlatformAdmin(organization), loginUrl };
 }
 

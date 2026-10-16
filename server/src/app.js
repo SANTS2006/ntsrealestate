@@ -16,6 +16,7 @@ import { sessionMiddleware } from './config/session.js';
 import { issueCsrfToken } from './middleware/csrf.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { idempotency } from './middleware/idempotency.js';
+import { requestOriginMiddleware } from './utils/appUrl.js';
 import { v1Router } from './routes/v1/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,7 @@ export function createApp() {
   app.set('trust proxy', 1);
 
   app.use(requestIdMiddleware);
+  app.use(requestOriginMiddleware);
   app.use(
     pinoHttp({
       logger,

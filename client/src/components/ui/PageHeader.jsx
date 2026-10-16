@@ -1,6 +1,6 @@
 export function PageHeader({ icon: Icon, eyebrow, title, description, action }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 px-6 py-6 dark:border-slate-800 dark:from-slate-900 dark:to-slate-950">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 px-4 py-5 sm:px-6 sm:py-6 dark:border-slate-800 dark:from-slate-900 dark:to-slate-950">
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 items-start gap-4">
           {Icon && (
@@ -19,7 +19,7 @@ export function PageHeader({ icon: Icon, eyebrow, title, description, action }) 
             {description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
           </div>
         </div>
-        {action && <div className="shrink-0">{action}</div>}
+        {action && <div className="w-full shrink-0 sm:w-auto [&>*]:max-sm:w-full">{action}</div>}
       </div>
     </div>
   );

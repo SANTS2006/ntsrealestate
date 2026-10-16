@@ -69,11 +69,20 @@ export default function PlatformAdminBackupsPage() {
     try { await fn(); if (okMessage) setNotice(okMessage); await load(); } catch (err) { setError(err.message); } finally { setBusy(null); }
   };
 
+  const actions = (b) => (
+    <>
+      <Button size="sm" variant="ghost" title="Verify" aria-label="Verify backup" loading={busy === `v${b.id}`} onClick={() => run(`v${b.id}`, () => api.verifyBackup(b.id), 'Verification finished.')}><ShieldCheck size={14} aria-hidden="true" /></Button>
+      <a href={`${API_URL}/platform-admin/backups/${b.id}/download`} title="Download (encrypted)" aria-label="Download encrypted backup" className="inline-flex h-8 items-center rounded-lg px-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Download size={14} aria-hidden="true" /></a>
+      <Button size="sm" variant="ghost" title="Restore…" aria-label="Restore this backup" disabled={!b.valid || working} onClick={() => setRestoreFor(b)}><RotateCcw size={14} aria-hidden="true" /></Button>
+      <Button size="sm" variant="ghost" title="Delete" aria-label="Delete backup" loading={busy === `d${b.id}`} onClick={() => { if (window.confirm('Delete this backup?')) run(`d${b.id}`, () => api.deleteBackup(b.id), 'Backup deleted.'); }}><Trash2 size={14} className="text-rose-500" aria-hidden="true" /></Button>
+    </>
+  );
+
   if (!status && !error) return <LoadingState label="Loading backups…" />;
   const health = HEALTH[status?.health];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <PageHeader icon={DatabaseBackup} eyebrow="Platform" title="Backup & Recovery" description="Daily encrypted backups of the whole database, and a guarded way to restore one." action={
         <Button loading={busy === 'create'} disabled={Boolean(status?.runningBackup || status?.activeRestore)} onClick={() => run('create', () => api.createBackup(), 'Backup started. It will appear below when it finishes.')}>
           <Play size={15} aria-hidden="true" /> Back up now
@@ -86,23 +95,23 @@ export default function PlatformAdminBackupsPage() {
       {status && !status.encryptionConfigured && <Alert variant="warning" title="No encryption key">Set BACKUP_ENCRYPTION_KEY. Production refuses to create unencrypted backups.</Alert>}
 
       {status && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card><CardBody>
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="min-w-0"><CardBody className="min-w-0 break-words">
             <p className="text-xs uppercase tracking-wide text-slate-400">Status</p>
             <div className="mt-1"><Badge tone={health.tone}>{status.health.replace(/_/g, ' ')}</Badge></div>
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{health.text}</p>
           </CardBody></Card>
-          <Card><CardBody>
+          <Card className="min-w-0"><CardBody className="min-w-0 break-words">
             <p className="text-xs uppercase tracking-wide text-slate-400">Last valid backup</p>
             <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{when(status.latestValidBackup?.startedAt)}</p>
             <p className="text-xs text-slate-500">{status.latestValidBackup ? `${size(status.latestValidBackup.sizeBytes)} · ${status.latestValidBackup.rowCount} rows` : ''}</p>
           </CardBody></Card>
-          <Card><CardBody>
+          <Card className="min-w-0"><CardBody className="min-w-0 break-words">
             <p className="text-xs uppercase tracking-wide text-slate-400">Next automatic backup</p>
             <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{status.schedule.enabled ? when(status.schedule.nextRunAt) : 'Scheduler off'}</p>
             <p className="text-xs text-slate-500">Daily at {status.schedule.dailyAtUtc} UTC</p>
           </CardBody></Card>
-          <Card><CardBody>
+          <Card className="min-w-0"><CardBody className="min-w-0 break-words">
             <p className="text-xs uppercase tracking-wide text-slate-400">Retention</p>
             <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">Latest {status.policy.retentionCount} · {status.policy.retentionDays} days</p>
             <p className="text-xs text-slate-500">Storage: {status.storage}{status.encryptionConfigured ? ' · encrypted' : ''}</p>
@@ -117,50 +126,78 @@ export default function PlatformAdminBackupsPage() {
         {backups === null ? <LoadingState label="Loading…" /> : backups.length === 0 ? (
           <CardBody><p className="text-sm text-slate-500">No backups yet.</p></CardBody>
         ) : (
-          <Table>
-            <Thead><tr><Th>Started</Th><Th>Type</Th><Th>Status</Th><Th>Verified</Th><Th>Size</Th><Th>By</Th><Th><span className="sr-only">Actions</span></Th></tr></Thead>
-            <Tbody>
+          <>
+            {/* Small screens: one card per backup, nothing scrolls sideways. */}
+            <ul className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
               {backups.map((b) => (
-                <Tr key={b.id}>
-                  <Td>{when(b.startedAt)}</Td>
-                  <Td>{b.type.replace('_', ' ').toLowerCase()}</Td>
-                  <Td><Badge tone={STATUS_TONE[b.status] ?? 'neutral'}>{b.status.toLowerCase()}</Badge>{b.errorMessage && <p className="mt-1 max-w-xs whitespace-normal text-xs text-rose-600">{b.errorMessage}</p>}</Td>
-                  <Td><Badge tone={b.verification === 'VERIFIED' ? 'success' : b.verification === 'FAILED' ? 'danger' : 'neutral'}>{b.verification.toLowerCase()}</Badge></Td>
-                  <Td>{size(b.sizeBytes)}</Td>
-                  <Td>{b.createdBy ?? '—'}</Td>
-                  <Td>
-                    {b.status === 'COMPLETED' && (
-                      <div className="flex justify-end gap-1">
-                        <Button size="sm" variant="ghost" title="Verify" loading={busy === `v${b.id}`} onClick={() => run(`v${b.id}`, () => api.verifyBackup(b.id), 'Verification finished.')}><ShieldCheck size={14} aria-hidden="true" /></Button>
-                        <a href={`${API_URL}/platform-admin/backups/${b.id}/download`} title="Download (encrypted)" aria-label="Download encrypted backup" className="inline-flex h-8 items-center rounded-lg px-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"><Download size={14} aria-hidden="true" /></a>
-                        <Button size="sm" variant="ghost" title="Restore…" disabled={!b.valid || working} onClick={() => setRestoreFor(b)}><RotateCcw size={14} aria-hidden="true" /></Button>
-                        <Button size="sm" variant="ghost" title="Delete" loading={busy === `d${b.id}`} onClick={() => { if (window.confirm('Delete this backup?')) run(`d${b.id}`, () => api.deleteBackup(b.id), 'Backup deleted.'); }}><Trash2 size={14} className="text-rose-500" aria-hidden="true" /></Button>
-                      </div>
-                    )}
-                  </Td>
-                </Tr>
+                <li key={b.id} className="flex min-w-0 flex-col gap-2 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{when(b.startedAt)}</p>
+                    <span className="text-xs capitalize text-slate-500">{b.type.replace('_', ' ').toLowerCase()}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone={STATUS_TONE[b.status] ?? 'neutral'}>{b.status.toLowerCase()}</Badge>
+                    <Badge tone={b.verification === 'VERIFIED' ? 'success' : b.verification === 'FAILED' ? 'danger' : 'neutral'}>{b.verification.toLowerCase()}</Badge>
+                    <span className="text-xs text-slate-500">{size(b.sizeBytes)}</span>
+                  </div>
+                  <p className="text-xs text-slate-500">By {b.createdBy ?? '—'}</p>
+                  {b.errorMessage && <p className="break-words text-xs text-rose-600">{b.errorMessage}</p>}
+                  {b.status === 'COMPLETED' && <div className="flex gap-1">{actions(b)}</div>}
+                </li>
               ))}
-            </Tbody>
-          </Table>
+            </ul>
+            <div className="hidden md:block">
+              <Table>
+                <Thead><tr><Th>Started</Th><Th>Type</Th><Th>Status</Th><Th>Verified</Th><Th>Size</Th><Th>By</Th><Th><span className="sr-only">Actions</span></Th></tr></Thead>
+                <Tbody>
+                  {backups.map((b) => (
+                    <Tr key={b.id}>
+                      <Td>{when(b.startedAt)}</Td>
+                      <Td>{b.type.replace('_', ' ').toLowerCase()}</Td>
+                      <Td><Badge tone={STATUS_TONE[b.status] ?? 'neutral'}>{b.status.toLowerCase()}</Badge>{b.errorMessage && <p className="mt-1 max-w-xs whitespace-normal text-xs text-rose-600">{b.errorMessage}</p>}</Td>
+                      <Td><Badge tone={b.verification === 'VERIFIED' ? 'success' : b.verification === 'FAILED' ? 'danger' : 'neutral'}>{b.verification.toLowerCase()}</Badge></Td>
+                      <Td>{size(b.sizeBytes)}</Td>
+                      <Td>{b.createdBy ?? '—'}</Td>
+                      <Td>{b.status === 'COMPLETED' && <div className="flex justify-end gap-1">{actions(b)}</div>}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </div>
+          </>
         )}
       </Card>
 
       {restores.length > 0 && (
         <Card>
           <CardHeader><h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Restore history</h2></CardHeader>
-          <Table>
-            <Thead><tr><Th>Started</Th><Th>Backup from</Th><Th>By</Th><Th>Result</Th></tr></Thead>
-            <Tbody>
-              {restores.map((r) => (
-                <Tr key={r.id}>
-                  <Td>{when(r.startedAt)}</Td>
-                  <Td>{when(r.backupTakenAt)}</Td>
-                  <Td>{r.startedBy ?? '—'}</Td>
-                  <Td><Badge tone={r.status === 'completed' ? 'success' : r.status === 'failed' ? 'danger' : 'brand'}>{RESTORE_LABEL[r.status] ?? r.status}</Badge>{r.errorMessage && <p className="mt-1 max-w-sm whitespace-normal text-xs text-rose-600">{r.errorMessage}{r.rolledBack ? ' Nothing was changed.' : ''}</p>}</Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <ul className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+            {restores.map((r) => (
+              <li key={r.id} className="flex min-w-0 flex-col gap-1.5 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{when(r.startedAt)}</p>
+                  <Badge tone={r.status === 'completed' ? 'success' : r.status === 'failed' ? 'danger' : 'brand'}>{RESTORE_LABEL[r.status] ?? r.status}</Badge>
+                </div>
+                <p className="text-xs text-slate-500">Backup from {when(r.backupTakenAt)} · by {r.startedBy ?? '—'}</p>
+                {r.errorMessage && <p className="break-words text-xs text-rose-600">{r.errorMessage}{r.rolledBack ? ' Nothing was changed.' : ''}</p>}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
+            <Table>
+              <Thead><tr><Th>Started</Th><Th>Backup from</Th><Th>By</Th><Th>Result</Th></tr></Thead>
+              <Tbody>
+                {restores.map((r) => (
+                  <Tr key={r.id}>
+                    <Td>{when(r.startedAt)}</Td>
+                    <Td>{when(r.backupTakenAt)}</Td>
+                    <Td>{r.startedBy ?? '—'}</Td>
+                    <Td><Badge tone={r.status === 'completed' ? 'success' : r.status === 'failed' ? 'danger' : 'brand'}>{RESTORE_LABEL[r.status] ?? r.status}</Badge>{r.errorMessage && <p className="mt-1 max-w-sm whitespace-normal text-xs text-rose-600">{r.errorMessage}{r.rolledBack ? ' Nothing was changed.' : ''}</p>}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
         </Card>
       )}
 
