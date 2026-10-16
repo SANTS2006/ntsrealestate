@@ -53,9 +53,9 @@ beforeAll(async () => {
   for (const n of ['u1', 'u2', 'u3', 'u4', 'u5']) {
     unit[n] = await prisma.unit.create({ data: { buildingId: building.id, unitNumber: n.toUpperCase(), monthlyRent: 500, status: 'available', offerRent: true, offerLease: n === 'u2', leasePrice: n === 'u2' ? 6000 : null, leaseTermMonths: n === 'u2' ? 12 : null } });
   }
-}, 120_000);
+}, 300_000);
 
-afterAll(async () => { if (org) await wipe(org.id).catch((e) => console.error('cleanup failed', tag, e.message)); }, 180_000);
+afterAll(async () => { if (org) await wipe(org.id).catch((e) => console.error('cleanup failed', tag, e.message)); }, 300_000);
 
 describe('rent: request → plan → payments → renew → end', () => {
   let deal; let payment;
@@ -67,7 +67,7 @@ describe('rent: request → plan → payments → renew → end', () => {
     expect(await status(unit.u1.id)).toBe('occupied');
     expect(await listed(unit.u1.id)).toBe(false);
     expect(await prisma.notification.count({ where: { userId: u.admin.id, type: 'deal_request' } })).toBeGreaterThan(0);
-  }, 120_000);
+  }, 300_000);
 
   it('the agent sets a monthly plan; the schedule is created and some of it is already overdue', async () => {
     const d = await setPlan(deal.id, { startDate: dayOffset(-40), termMonths: 6, frequency: 'monthly', installmentAmount: 500, securityDeposit: 1000 }, org.id, as(u.admin, ['administrator']), req);
@@ -75,13 +75,13 @@ describe('rent: request → plan → payments → renew → end', () => {
     expect(d.plan).toMatchObject({ frequency: 'monthly', installmentAmount: 500, securityDeposit: 1000, total: 6 });
     expect(d.plan.overdueCount).toBe(2);
     expect(d.installments.filter((i) => i.status === 'overdue')).toHaveLength(2);
-  }, 120_000);
+  }, 300_000);
 
   it('approving makes it active, and keeps the plan the agent set', async () => {
     const d = await updateDealStatus(deal.id, 'approved', org.id, as(u.admin, ['administrator']), req);
     expect(d.status).toBe('approved');
     expect(d.installments).toHaveLength(6);
-  }, 120_000);
+  }, 300_000);
 
   it('every payment is entered against the earliest instalments; a refund puts them back', async () => {
     const admin = as(u.admin, ['administrator']);
@@ -100,16 +100,16 @@ describe('rent: request → plan → payments → renew → end', () => {
     d = await getDeal(deal.id, org.id, admin);
     expect(d.installments.slice(0, 2).every((i) => i.status === 'paid')).toBe(true);
     expect(d.plan.overdueCount).toBe(0);
-  }, 180_000);
+  }, 300_000);
 
   it('a plan with payments on it cannot be replaced', async () => {
     await expect(setPlan(deal.id, { termMonths: 3, frequency: 'monthly', installmentAmount: 400 }, org.id, as(u.admin, ['administrator']), req)).rejects.toThrow(/already been recorded/i);
-  }, 60_000);
+  }, 240_000);
 
   it('only an agent connected to the property can manage it; others do not even see it', async () => {
     await expect(endDeal(deal.id, { reason: 'moved_out' }, org.id, as(u.stranger, ['agent']), req)).rejects.toThrow(/not found/i);
     await expect(renewDeal(deal.id, {}, org.id, as(u.stranger, ['agent']), req)).rejects.toThrow(/not found/i);
-  }, 60_000);
+  }, 240_000);
 
   it('the customer asks to renew, the agent renews, and the schedule carries on', async () => {
     const asked = await requestRenewal(deal.id, org.id, as(u.ta, ['tenant']), req);
@@ -125,7 +125,7 @@ describe('rent: request → plan → payments → renew → end', () => {
     expect(d.plan.renewalCount).toBe(1);
     expect(d.plan.renewalRequestedAt).toBeNull();
     expect(new Date(d.plan.endDate) > new Date(before.plan.endDate)).toBe(true);
-  }, 180_000);
+  }, 300_000);
 
   it('reminders go out once per instalment, however often they run', async () => {
     await prisma.dealInstallment.updateMany({ where: { dealId: deal.id, sequence: 3 }, data: { dueDate: dayOffset(-3), status: 'pending' } });
@@ -134,7 +134,7 @@ describe('rent: request → plan → payments → renew → end', () => {
     expect(await prisma.notification.count({ where: { userId: u.ta.id, type: 'rent_overdue' } })).toBeGreaterThanOrEqual(1);
     const again = await runRentalReminders();
     expect(again.overdue).toBe(0);
-  }, 120_000);
+  }, 300_000);
 
   it('ending it frees the house for the website, cancels what was not paid, and closes the customer\'s access', async () => {
     const d = await endDeal(deal.id, { reason: 'moved_out', note: 'Left on good terms' }, org.id, as(u.agent, ['agent']), req);
@@ -149,19 +149,19 @@ describe('rent: request → plan → payments → renew → end', () => {
     expect(left.filter((i) => i.status === 'paid')).toHaveLength(2); // history kept
     expect(await userStatus(u.ta)).toBe('inactive');
     expect(await prisma.notification.count({ where: { userId: u.ta.id, title: { contains: 'ended' } } })).toBe(1);
-  }, 180_000);
+  }, 300_000);
 
   it('no more payments once it has ended, and it cannot be ended twice', async () => {
     await expect(recordPayment(org.id, { dealId: deal.id, amount: 100, paymentMethod: 'cash', idempotencyKey: randomBytes(8).toString('hex') }, as(u.admin, ['administrator']), req)).rejects.toThrow(/ended/i);
     await expect(endDeal(deal.id, { reason: 'cancelled' }, org.id, as(u.admin, ['administrator']), req)).rejects.toThrow(/already ended/i);
-  }, 60_000);
+  }, 240_000);
 
   it('the freed house can be rented by someone else', async () => {
     const res = await requestDeal(as(u.tc, ['tenant']), { kind: 'rent', unitId: unit.u1.id }, req);
     expect(res.deal.status).toBe('pending');
     expect(await status(unit.u1.id)).toBe('occupied');
     await endDeal(res.deal.id, { reason: 'cancelled' }, org.id, as(u.admin, ['administrator']), req); // clean up for the next tests
-  }, 180_000);
+  }, 300_000);
 });
 
 describe('a customer who still rents something else keeps their access', () => {

@@ -181,7 +181,7 @@ export async function recordPayment(organizationId, body, actingUser, req) {
     if (deal) await recomputeInstallments(tx, deal.id);
 
     return created;
-    });
+    }, { timeout: 20_000 });
   } catch (err) {
     // The same idempotency key arriving twice at once: the loser gets the winner's payment.
     if (err?.code === 'P2002' && body.idempotencyKey) {
@@ -220,7 +220,7 @@ export async function refundPayment(id, organizationId, body, actingUser, req) {
       await applyPaymentDelta(payment.invoiceId, -Number(payment.amount), tx);
     }
     if (payment.dealId) await recomputeInstallments(tx, payment.dealId);
-  });
+  }, { timeout: 20_000 });
 
   await audit({ organizationId, userId: actingUser.id, action: 'payment.refunded', entityType: 'payment', entityId: id, oldValues: { status: 'completed' }, newValues: { status: 'refunded', reason: body?.reason }, req });
   return getPayment(id, organizationId, actingUser);

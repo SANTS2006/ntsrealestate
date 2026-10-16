@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database.js';
 import { allocatePayments, toCents } from '../services/dealPlan.js';
 
@@ -21,14 +22,21 @@ export async function recomputeInstallments(tx, dealId) {
   ]);
   if (items.length === 0) return [];
   const next = allocatePayments(items.map((i) => ({ ...i, amount: Number(i.amount), paidAmount: Number(i.paidAmount) })), Number(agg._sum.amount ?? 0));
-  const now = new Date();
-  for (const n of next) {
+  // One statement for all changed instalments: a payment must not hold its
+  // transaction open for a round trip per instalment (a long plan on a slow
+  // connection would run out of time and the payment would be lost).
+  const changed = next.filter((n) => {
     const before = items.find((i) => i.id === n.id);
-    if (before.status === n.status && toCents(before.paidAmount) === toCents(n.paidAmount)) continue;
-    await tx.dealInstallment.update({
-      where: { id: n.id },
-      data: { paidAmount: n.paidAmount, status: n.status, paidAt: n.status === 'paid' ? (before.paidAt ?? now) : null },
-    });
+    return before.status !== n.status || toCents(before.paidAmount) !== toCents(n.paidAmount);
+  });
+  if (changed.length > 0) {
+    const values = Prisma.join(changed.map((n) => Prisma.sql`(${n.id}::uuid, ${n.paidAmount}::numeric, ${n.status}::text)`));
+    await tx.$executeRaw`
+      UPDATE deal_installments di
+      SET paid_amount = v.paid, status = v.status,
+          paid_at = CASE WHEN v.status = 'paid' THEN COALESCE(di.paid_at, now()) ELSE NULL END
+      FROM (VALUES ${values}) AS v(id, paid, status)
+      WHERE di.id = v.id`;
   }
   return next;
 }
