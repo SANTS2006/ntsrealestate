@@ -65,7 +65,7 @@ export function Topbar({ onMenuClick }) {
 
   return (
     <header className="relative z-20 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center gap-2 lg:hidden">
+      <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
         <button
           type="button"
           onClick={onMenuClick}
@@ -74,20 +74,23 @@ export function Topbar({ onMenuClick }) {
         >
           <Menu size={20} aria-hidden="true" />
         </button>
-        <Logo size={32} />
-        <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">NTS Real Estate System</span>
+        <Logo size={32} className="shrink-0" />
+        <span className="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <span className="sm:hidden">NTS Real Estate</span>
+          <span className="hidden sm:inline">NTS Real Estate System</span>
+        </span>
       </div>
 
       <p className="hidden text-base font-semibold text-slate-900 dark:text-slate-100 lg:block">NTS Real Estate System</p>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
         <WebsiteLink />
         <ThemeToggle />
 
         <Link
           to="/notifications"
           aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
-          className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          className="relative shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
         >
           <Bell size={18} className={unreadCount > 0 ? 'origin-top animate-[wiggle_0.6s_ease-in-out_1]' : undefined} aria-hidden="true" />
           {unreadCount > 0 && (
@@ -108,6 +111,11 @@ export function Topbar({ onMenuClick }) {
             <span className="relative shrink-0">
               <UserAvatar user={user} size={36} className="text-xs" refreshKey={avatarVersion} />
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 sm:hidden items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white ring-2 ring-white dark:ring-slate-900" aria-label={`${unreadCount} unread notifications`}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </span>
             <span className="hidden min-w-0 text-left sm:block">
               <span className="block truncate text-sm font-semibold leading-tight text-slate-900 dark:text-slate-100">{user?.firstName} {user?.lastName}</span>
@@ -144,6 +152,11 @@ export function Topbar({ onMenuClick }) {
                 </div>
               )}
               <div className="flex flex-col gap-0.5 px-1 py-1">
+                <Link to="/notifications" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                  <Bell size={15} aria-hidden="true" />
+                  Notifications
+                  {unreadCount > 0 && <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+                </Link>
                 <Link to="/settings" role="menuitem" onClick={() => setMenuOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
                   <Settings size={15} aria-hidden="true" />
                   Settings

@@ -1,10 +1,13 @@
 import { Globe } from 'lucide-react';
 import clsx from 'clsx';
-import { PUBLIC_SITE_URL } from '../../config/env.js';
+import { PUBLIC_SITE_URL, WEBSITE_ORG_SLUG } from '../../config/env.js';
+import { useOptionalBranding } from '../../contexts/BrandingContext.jsx';
 
 // Opens the company website in a new tab, so people can go there and come
 // back to the app without signing out and in again (the website is public).
 export function WebsiteLink({ className, showLabel = true }) {
+  const slug = useOptionalBranding()?.branding?.slug;
+  if (slug !== WEBSITE_ORG_SLUG) return null;
   return (
     <a
       href={PUBLIC_SITE_URL}
