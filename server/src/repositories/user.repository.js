@@ -169,3 +169,7 @@ export async function findAuthContext(id) {
   `;
   return rows[0] ?? null;
 }
+
+export function setGoogleSub(id, googleSub) {
+  return prisma.user.update({ where: { id }, data: { googleSub } });
+}

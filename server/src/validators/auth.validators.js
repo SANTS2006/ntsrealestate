@@ -95,3 +95,11 @@ export const tokenLoginSchema = z.object({
 export const refreshTokenSchema = z.object({
   body: z.object({ refreshToken: z.string().min(1) }).strict(),
 });
+
+export const googleLoginSchema = z.object({
+  body: z.object({
+    credential: z.string().min(20).max(4096),
+    mode: z.enum(['login', 'register']).default('login'),
+    agreedToTerms: z.boolean().optional(),
+  }).strict(),
+});

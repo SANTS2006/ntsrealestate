@@ -99,6 +99,17 @@ export function AuthProvider({ children }) {
     return res.data;
   }, []);
 
+  // Sign in (or, with mode "register", sign up) with a Google credential. Like
+  // login, hands back the raw response so the page can ask for the MFA code.
+  const loginWithGoogle = useCallback(async (orgSlug, credential, options = {}) => {
+    const res = await tenantAuthApi.google(orgSlug, { credential, ...options });
+    if (res.data.user) {
+      setUser(res.data.user);
+      rememberOrgSlug(orgSlug);
+    }
+    return res.data;
+  }, []);
+
   const completeMfaChallenge = useCallback(async (orgSlug, mfaToken, code) => {
     const res = await authApi.mfaChallenge({ mfaToken, code });
     setUser(res.data.user);
@@ -118,10 +129,10 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      user, loading, authError, authStatus: loading ? 'initializing' : user ? 'authenticated' : authError ? 'error' : 'unauthenticated', isAuthenticated: Boolean(user), login, completeMfaChallenge, logout, refreshUser, hasRole,
+      user, loading, authError, authStatus: loading ? 'initializing' : user ? 'authenticated' : authError ? 'error' : 'unauthenticated', isAuthenticated: Boolean(user), login, loginWithGoogle, completeMfaChallenge, logout, refreshUser, hasRole,
       avatarVersion, bumpAvatarVersion,
     }),
-    [user, loading, authError, login, completeMfaChallenge, logout, refreshUser, hasRole, avatarVersion, bumpAvatarVersion]
+    [user, loading, authError, login, loginWithGoogle, completeMfaChallenge, logout, refreshUser, hasRole, avatarVersion, bumpAvatarVersion]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

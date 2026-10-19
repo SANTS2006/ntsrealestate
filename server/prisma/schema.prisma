@@ -307,6 +307,7 @@ model User {
   // tenant realistically shares theirs, but generating it uniformly avoids
   // conditional logic at each of the two user-creation call sites. See
   // utils/referralCode.js.
+  googleSub           String?    @unique @map("google_sub")
   referralCode        String?    @unique @map("referral_code")
   // Set at registration when the user checks the Terms & Conditions /
   // Privacy Policy agreement box (see auth.service.js#registerOrganization).

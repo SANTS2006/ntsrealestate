@@ -42,6 +42,8 @@ import { recordReferralIfCodeValid } from './referral.service.js';
 import { generateUniqueReferralCode } from '../utils/referralCode.js';
 import { logger } from '../config/logger.js';
 import { serializeUser } from '../utils/serializers.js';
+import { verifyGoogleCredential } from '../auth/google.js';
+import { setGoogleSub } from '../repositories/user.repository.js';
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;
@@ -528,4 +530,79 @@ export async function revokeRefreshToken(rawRefreshToken) {
   const stored = await findActiveRefreshTokenByRawToken(rawRefreshToken);
   if (stored) await revokeRefreshTokenFamily(stored.familyId);
   return { revoked: true };
+}
+
+// ── Sign in with Google ──────────────────────────────────────────────────
+// Google proves who owns the email address; everything else is the same as a
+// password sign-in: the account must belong to THIS company, must be active,
+// and two-factor (if on) is still asked for. An existing account is linked to
+// the Google account the first time; after that only that Google account works.
+// "register" mode also creates a customer (tenant) account for a new email.
+export async function loginWithGoogle({ credential, mode = 'login', agreedToTerms }, organization, req) {
+  if (organization.status !== 'active') {
+    throw AppError.forbidden('This company has been deactivated and all access has been revoked. Please contact the platform administrator.');
+  }
+  const google = await verifyGoogleCredential(credential);
+  let user = await findUserByEmailGlobal(google.email);
+
+  if (user && user.organizationId !== organization.id) {
+    // Same answer as for an unknown email: do not reveal which company an address belongs to.
+    throw AppError.notFound('No account was found for this Google address. Create an account first.');
+  }
+
+  if (!user) {
+    if (mode !== 'register') throw AppError.notFound('No account was found for this Google address. Create an account first.');
+    if (agreedToTerms !== true) throw AppError.badRequest('You must agree to the Terms & Conditions and Privacy Policy to create an account.');
+    const tenantRole = await findRoleByName(organization.id, 'tenant');
+    if (!tenantRole) throw AppError.internal('Registration is temporarily unavailable. Please try again later.');
+    const [passwordHash, referralCode] = await Promise.all([hashPassword(generateRawToken(32)), generateUniqueReferralCode(google.firstName)]);
+    try {
+      user = await prisma.$transaction(async (tx) => {
+        const created = await createUser({
+          organizationId: organization.id, firstName: google.firstName, lastName: google.lastName, email: google.email, passwordHash,
+          status: 'active', emailVerified: true, googleSub: google.sub, referralCode, termsAcceptedAt: new Date(),
+        }, tx);
+        await assignRoleToUser(created.id, tenantRole.id, tx);
+        return created;
+      }, { timeout: 15_000 });
+    } catch (err) {
+      if (err?.code === 'P2002') throw AppError.conflict('An account with this email already exists.');
+      throw err;
+    }
+    await audit({ organizationId: organization.id, userId: user.id, action: 'user.registered_google', entityType: 'user', entityId: user.id, newValues: { email: user.email, role: 'tenant' }, req });
+  } else {
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw AppError.forbidden('This account is temporarily locked due to repeated failed sign-in attempts. Please try again later.');
+    }
+    if (user.status === 'inactive' || user.status === 'locked') {
+      throw AppError.forbidden(user.status === 'inactive' ? 'Your account has been deactivated. Please contact your administrator.' : 'This account is not active. Please contact your administrator.');
+    }
+    if (user.googleSub && user.googleSub !== google.sub) {
+      await audit({ organizationId: user.organizationId, userId: user.id, action: 'auth.google_mismatch', entityType: 'user', entityId: user.id, req });
+      throw AppError.unauthorized('This account is linked to a different Google account.');
+    }
+    if (!user.googleSub) {
+      try {
+        user = await setGoogleSub(user.id, google.sub);
+      } catch (err) {
+        if (err?.code === 'P2002') throw AppError.conflict('That Google account is already linked to another user.');
+        throw err;
+      }
+      await audit({ organizationId: user.organizationId, userId: user.id, action: 'auth.google_linked', entityType: 'user', entityId: user.id, req });
+    }
+    // Google has just confirmed the owner of this address, which is all "verify your email" asked for.
+    if (user.status === 'pending') {
+      await activateIfPending(user.id);
+      user = await findUserByIdUnscoped(user.id);
+    }
+  }
+
+  if (user.mfaEnabled) {
+    return { mfaRequired: true, mfaToken: signMfaChallengeToken(user.id) };
+  }
+  await resetFailedLogins(user.id);
+  await establishSession(req, user);
+  const roles = await loadRoleNames(user.id);
+  await audit({ organizationId: user.organizationId, userId: user.id, action: 'auth.google_login_succeeded', entityType: 'user', entityId: user.id, req });
+  return { user: serializeUser(user, roles, await getEffectivePermissions(user.organizationId, roles)) };
 }

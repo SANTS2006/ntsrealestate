@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { GoogleSignInButton } from '../../components/auth/GoogleSignInButton.jsx';
 import { AuthLayout } from '../../layouts/AuthLayout.jsx';
 import { Field } from '../../components/ui/Input.jsx';
 import { Button } from '../../components/ui/Button.jsx';
@@ -44,6 +45,16 @@ export default function LoginPage() {
       }
     } catch (err) {
       setServerError(err.message);
+    }
+  };
+
+  // Signed in with Google: same next steps as a password sign-in.
+  const onGoogle = (result) => {
+    if (result.mfaRequired) {
+      setMfaToken(result.mfaToken);
+      setStep('mfa');
+    } else {
+      navigate(redirectTo, { replace: true });
     }
   };
 
@@ -123,6 +134,9 @@ export default function LoginPage() {
           Login
         </Button>
       </form>
+      <div className="mt-4">
+        <GoogleSignInButton orgSlug={orgSlug} mode="login" onResult={onGoogle} onError={setServerError} />
+      </div>
     </AuthLayout>
   );
 }

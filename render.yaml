@@ -84,3 +84,6 @@ services:
         sync: false
       - key: S3_SECRET_ACCESS_KEY
         sync: false
+      # Sign in with Google (optional): the Web client ID from Google Cloud Console.
+      - key: GOOGLE_CLIENT_ID
+        sync: false

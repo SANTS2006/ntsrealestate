@@ -74,6 +74,10 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
 
+  // "Sign in with Google": the Web client ID from Google Cloud Console. Unset
+  // means the button is simply not shown.
+  GOOGLE_CLIENT_ID: z.string().regex(/\.apps\.googleusercontent\.com$/, 'GOOGLE_CLIENT_ID must end in .apps.googleusercontent.com').optional(),
+
   CORS_ORIGINS: z.string().min(1, 'CORS_ORIGINS is required (comma-separated exact origins)'),
 
   CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { GoogleSignInButton } from '../../components/auth/GoogleSignInButton.jsx';
 import { AuthLayout } from '../../layouts/AuthLayout.jsx';
 import { Field } from '../../components/ui/Input.jsx';
 import { Button } from '../../components/ui/Button.jsx';
@@ -19,7 +20,7 @@ export default function RegisterPage() {
   // pre-fills the field — still editable, and still fine if left blank or
   // wrong (see auth.service.js#registerOrganization, a bad code never
   // blocks signup).
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(registerSchema),
     defaultValues: { referralCode: searchParams.get('ref') ?? '' },
   });
@@ -97,6 +98,15 @@ export default function RegisterPage() {
           Create account
         </Button>
       </form>
+      <div className="mt-4">
+        <GoogleSignInButton
+          orgSlug={orgSlug}
+          mode="register"
+          getAgreed={() => Boolean(getValues('agreedToTerms'))}
+          onResult={() => navigate('/home', { replace: true })}
+          onError={setServerError}
+        />
+      </div>
     </AuthLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import * as authService from '../services/auth.service.js';
+import { env } from '../config/env.js';
 import { getOrganizationBrandingBySlug } from '../services/platformAdmin.service.js';
 
 // The one endpoint a tenant's branded auth pages can call before knowing
@@ -28,6 +29,20 @@ export const login = asyncHandler(async (req, res) => {
     return sendSuccess(res, { data: { mfaRequired: true, mfaToken: result.mfaToken }, message: 'Multi-factor authentication code required.' });
   }
   sendSuccess(res, { data: result, message: 'Signed in successfully.' });
+});
+
+export const google = asyncHandler(async (req, res) => {
+  const result = await authService.loginWithGoogle(req.body, req.tenantOrg, req);
+  if (result.mfaRequired) {
+    return sendSuccess(res, { data: { mfaRequired: true, mfaToken: result.mfaToken }, message: 'Multi-factor authentication code required.' });
+  }
+  sendSuccess(res, { data: result, message: 'Signed in successfully.' });
+});
+
+// Whether "Sign in with Google" is set up, and the public client id the
+// browser needs to show the button. (A client id is not a secret.)
+export const authConfig = asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: { googleClientId: env.GOOGLE_CLIENT_ID ?? null } });
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {

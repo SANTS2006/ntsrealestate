@@ -17,9 +17,10 @@ export const helmetMiddleware = helmet({
           imgSrc: ["'self'", 'data:', 'blob:', 'res.cloudinary.com', 'api.cloudinary.com'],
           // Decrypted chat pictures, video and voice messages play from blob: URLs.
           mediaSrc: ["'self'", 'blob:'],
-          connectSrc: ["'self'", 'wss:'],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          connectSrc: ["'self'", 'wss:', 'https://accounts.google.com/gsi/'],
+          scriptSrc: ["'self'", 'https://accounts.google.com/gsi/client'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://accounts.google.com/gsi/style'],
+          frameSrc: ['https://accounts.google.com/gsi/'],
           objectSrc: ["'none'"],
           frameAncestors: ["'none'"],
           upgradeInsecureRequests: [],
@@ -27,6 +28,8 @@ export const helmetMiddleware = helmet({
       }
     : false,
   crossOriginResourcePolicy: { policy: 'same-site' },
+  // Google's sign-in popup must be able to talk back to this page.
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
 });
 
 // Strict, explicit-allowlist CORS — never a wildcard for an authenticated,
