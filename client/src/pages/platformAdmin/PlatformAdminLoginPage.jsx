@@ -6,6 +6,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Field } from '../../components/ui/Input.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { Alert } from '../../components/ui/Alert.jsx';
+import { GoogleSignInButton } from '../../components/auth/GoogleSignInButton.jsx';
 import { PlatformAuthShell } from '../../components/platformAdmin/PlatformAuthShell.jsx';
 import { usePlatformAdmin } from '../../contexts/PlatformAdminContext.jsx';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
@@ -81,6 +82,13 @@ export default function PlatformAdminLoginPage() {
         </div>
         <Button type="submit" loading={isSubmitting} className="w-full mt-2">Sign in</Button>
       </form>
+      <div className="mt-4">
+        <GoogleSignInButton
+          platform
+          onResult={(result) => { if (result.mfaRequired) setMfaToken(result.mfaToken); else navigate(redirectTo, { replace: true }); }}
+          onError={setServerError}
+        />
+      </div>
     </PlatformAuthShell>
   );
 }

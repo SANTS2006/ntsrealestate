@@ -1057,6 +1057,7 @@ model PlatformAdmin {
   avatarUpdatedAt     DateTime?                   @map("avatar_updated_at") @db.Timestamptz
   mfaEnabled          Boolean                     @default(false) @map("mfa_enabled")
   mfaSecretEncrypted  String?                     @map("mfa_secret_encrypted")
+  googleSub           String?                     @unique @map("google_sub")
   recoveryCodes       PlatformAdminRecoveryCode[]
   avatar              PlatformAdminAvatar?
   createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz

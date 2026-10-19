@@ -26,6 +26,7 @@ import { logger } from '../config/logger.js';
 import { platformAudit } from './platformAudit.service.js';
 import { appBaseUrl } from '../utils/appUrl.js';
 import { signMfaChallengeToken } from '../auth/jwt.js';
+import { verifyGoogleCredential } from '../auth/google.js';
 
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
@@ -65,6 +66,39 @@ export async function loginPlatformAdmin({ email, password }, req) {
     return { mfaRequired: true, mfaToken: signMfaChallengeToken(admin.id, PLATFORM_MFA_PURPOSE) };
   }
   return establishPlatformSession(admin, req);
+}
+
+// Sign in with Google for an EXISTING platform admin (there is no sign-up).
+// Google proves who owns the address; the account must be active, and two-factor
+// (if on) is still required. The first time links the Google account; after
+// that only that Google account works for this admin.
+export async function loginPlatformAdminWithGoogle({ credential }, req) {
+  const google = await verifyGoogleCredential(credential);
+  let admin = await findPlatformAdminByEmail(google.email);
+  if (!admin) throw AppError.notFound('No platform admin account uses this Google address.');
+  if (admin.lockedUntil && admin.lockedUntil > new Date()) {
+    throw AppError.forbidden('This account is temporarily locked due to repeated failed sign-in attempts. Please try again later.');
+  }
+  if (!admin.isActive) throw AppError.forbidden('Your account has been deactivated. Please contact the platform administrator.');
+  if (admin.googleSub && admin.googleSub !== google.sub) {
+    await platformAudit({ actor: admin, action: 'auth.google_mismatch', req });
+    throw AppError.unauthorized('This account is linked to a different Google account.');
+  }
+  if (!admin.googleSub) {
+    try {
+      admin = await prisma.platformAdmin.update({ where: { id: admin.id }, data: { googleSub: google.sub } });
+    } catch (err) {
+      if (err?.code === 'P2002') throw AppError.conflict('That Google account is already linked to another administrator.');
+      throw err;
+    }
+    await platformAudit({ actor: admin, action: 'auth.google_linked', req });
+  }
+  if (admin.mfaEnabled && admin.mfaSecretEncrypted) {
+    return { mfaRequired: true, mfaToken: signMfaChallengeToken(admin.id, PLATFORM_MFA_PURPOSE) };
+  }
+  const result = await establishPlatformSession(admin, req);
+  await platformAudit({ actor: admin, action: 'auth.google_login', req });
+  return result;
 }
 
 export const PLATFORM_MFA_PURPOSE = 'platform_mfa_challenge';

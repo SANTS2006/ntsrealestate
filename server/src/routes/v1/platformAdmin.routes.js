@@ -9,7 +9,7 @@ import { mfaChallengeSchema, mfaConfirmSchema, mfaDisableSchema } from '../../va
 import * as backupController from '../../controllers/backup.controller.js';
 import { listBackupsSchema, listRestoresSchema, backupIdSchema, policySchema, prepareRestoreSchema, startRestoreSchema } from '../../validators/backup.validators.js';
 import {
-  platformAdminLoginSchema, createOrganizationSchema, organizationStatusSchema, platformForgotPasswordSchema,
+  platformAdminLoginSchema, platformGoogleLoginSchema, createOrganizationSchema, organizationStatusSchema, platformForgotPasswordSchema,
   platformResetPasswordSchema, platformChangePasswordSchema, platformProfileSchema, createPlatformAdminSchema,
   platformAdminStatusSchema, organizationIdParamSchema, updateOrganizationSchema, sendAdminResetSchema, maintenanceSchema,
 } from '../../validators/platformAdmin.validators.js';
@@ -17,6 +17,8 @@ import {
 export const platformAdminRouter = Router();
 
 platformAdminRouter.post('/auth/login', authRateLimiter(), csrfProtection, validate(platformAdminLoginSchema), platformAdminController.login);
+platformAdminRouter.get('/auth/config', platformAdminController.authConfig);
+platformAdminRouter.post('/auth/google', authRateLimiter(), csrfProtection, validate(platformGoogleLoginSchema), platformAdminController.googleLogin);
 platformAdminRouter.post('/auth/logout', csrfProtection, authenticatePlatformAdmin, platformAdminController.logout);
 platformAdminRouter.get('/auth/me', authenticatePlatformAdmin, platformAdminController.me);
 platformAdminRouter.post('/auth/forgot-password', authRateLimiter(), csrfProtection, validate(platformForgotPasswordSchema), platformAdminController.forgotPassword);

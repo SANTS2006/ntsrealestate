@@ -97,3 +97,7 @@ export const maintenanceSchema = z.object({
     notifyUsers: z.boolean().optional(),
   }).strict(),
 });
+
+export const platformGoogleLoginSchema = z.object({
+  body: z.object({ credential: z.string().min(20).max(4096) }).strict(),
+});

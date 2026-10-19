@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { tenantAuthApi } from '../../api/tenantAuth.js';
+import { platformAdminApi } from '../../api/platformAdmin.js';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { usePlatformAdmin } from '../../contexts/PlatformAdminContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
@@ -24,8 +26,10 @@ function loadGsi() {
 // Google and hands it to our server, which verifies it.
 //   mode "login"    — an existing account only
 //   mode "register" — also creates a customer account (needs `getAgreed()` to be true)
-export function GoogleSignInButton({ orgSlug, mode = 'login', getAgreed, onResult, onError }) {
-  const { loginWithGoogle } = useAuth();
+export function GoogleSignInButton({ orgSlug, platform = false, mode = 'login', getAgreed, onResult, onError }) {
+  const auth = useAuth();
+  const platformAuth = usePlatformAdmin();
+  const loginWithGoogle = platform ? (_slug, credential) => platformAuth.loginWithGoogle(credential) : auth.loginWithGoogle;
   const { theme } = useTheme(); // re-draw the button when light/dark changes
   const holder = useRef(null);
   const latest = useRef({});
@@ -34,9 +38,9 @@ export function GoogleSignInButton({ orgSlug, mode = 'login', getAgreed, onResul
 
   useEffect(() => {
     let cancelled = false;
-    tenantAuthApi.authConfig(orgSlug).then((res) => { if (!cancelled) setClientId(res.data.googleClientId); }).catch(() => {});
+    (platform ? platformAdminApi.authConfig() : tenantAuthApi.authConfig(orgSlug)).then((res) => { if (!cancelled) setClientId(res.data.googleClientId); }).catch(() => {});
     return () => { cancelled = true; };
-  }, [orgSlug]);
+  }, [orgSlug, platform]);
 
   useEffect(() => {
     if (!clientId || !holder.current) return undefined;

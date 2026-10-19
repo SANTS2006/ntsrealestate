@@ -35,6 +35,12 @@ export function PlatformAdminProvider({ children }) {
     return res.data;
   }, []);
 
+  const loginWithGoogle = useCallback(async (credential) => {
+    const res = await platformAdminApi.google(credential);
+    if (res.data.admin) setAdmin(res.data.admin);
+    return res.data;
+  }, []);
+
   const completeMfa = useCallback(async (mfaToken, code) => {
     const res = await platformAdminApi.mfaChallenge({ mfaToken, code });
     setAdmin(res.data.admin);
@@ -50,8 +56,8 @@ export function PlatformAdminProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ admin, loading, isAuthenticated: Boolean(admin), login, completeMfa, logout, refresh }),
-    [admin, loading, login, completeMfa, logout, refresh]
+    () => ({ admin, loading, isAuthenticated: Boolean(admin), login, loginWithGoogle, completeMfa, logout, refresh }),
+    [admin, loading, login, loginWithGoogle, completeMfa, logout, refresh]
   );
 
   return <PlatformAdminContext.Provider value={value}>{children}</PlatformAdminContext.Provider>;

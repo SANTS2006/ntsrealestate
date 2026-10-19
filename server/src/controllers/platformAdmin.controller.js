@@ -1,4 +1,5 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { env } from '../config/env.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import * as platformAdminService from '../services/platformAdmin.service.js';
 import * as accountService from '../services/platformAdminAccount.service.js';
@@ -142,3 +143,11 @@ export const mfaEnroll = asyncHandler(async (req, res) => sendSuccess(res, { dat
 export const mfaConfirm = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.confirm(req.platformAdmin, req.body.code, req), message: 'Two-factor authentication is on.' }));
 export const mfaDisable = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.disable(req.platformAdmin, req.body, req), message: 'Two-factor authentication is off.' }));
 export const mfaReset = asyncHandler(async (req, res) => sendSuccess(res, { data: await mfaService.resetFor(req.params.id, req.platformAdmin, req), message: 'Two-factor authentication was reset.' }));
+
+export const googleLogin = asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: await platformAdminService.loginPlatformAdminWithGoogle(req.body, req) });
+});
+
+export const authConfig = asyncHandler(async (req, res) => {
+  sendSuccess(res, { data: { googleClientId: env.GOOGLE_CLIENT_ID ?? null } });
+});
