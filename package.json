@@ -12,6 +12,7 @@
     "dev:server": "npm run dev --workspace server",
     "dev:client": "npm run dev --workspace client",
     "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "build:website": "node website/build.mjs",
     "build:client": "npm run build --workspace client",
     "build:server": "npm run build --workspace server",
     "start": "npm run start --workspace server",

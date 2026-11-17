@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import { listPublicOrganizations } from '../../services/publicDirectory.service.js';
+import rateLimit from 'express-rate-limit';
+import { AppError } from '../../utils/AppError.js';
 import { validate } from '../../middleware/validate.js';
 import { authRateLimiter } from '../../middleware/security.js';
 import { resolvePublicOrg } from '../../middleware/resolvePublicOrg.js';
 import * as publicController from '../../controllers/public.controller.js';
+import * as platformInquiryController from '../../controllers/platformInquiry.controller.js';
+import { createPlatformInquirySchema } from '../../validators/platformInquiry.validators.js';
 import * as publicLandService from '../../services/publicLand.service.js';
 import { getPublicMaintenanceStatus } from '../../services/maintenanceMode.service.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
@@ -27,6 +30,22 @@ export const publicRouter = Router();
 publicRouter.get('/system-status', asyncHandler(async (req, res) => {
   sendSuccess(res, { data: { maintenance: await getPublicMaintenanceStatus() } });
 }));
+
+// A per-IP ceiling on top of the per-IP+email one, so rotating email addresses
+// can't turn the form into a mail relay to the platform team.
+const inquiryIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: () => { throw AppError.tooManyRequests('Too many messages from this connection. Please try again later.'); },
+});
+
+// The marketing website's Contact and Request-a-demo forms. Anonymous by
+// design, so it is rate limited per IP+email and the body is strictly validated
+// (see validators/platformInquiry.validators.js). Declared before the company
+// router below, which would otherwise try to resolve an organization first.
+publicRouter.post('/platform-inquiries', inquiryIpLimiter, authRateLimiter(5), validate(createPlatformInquirySchema), platformInquiryController.create);
 
 // One router, mounted twice: under /orgs/:orgSlug (the way every site should
 // use it) and bare (legacy, via PRIMARY_ORGANIZATION_ID).
@@ -58,11 +77,6 @@ companyRouter.get('/stats', publicController.getStats);
 // as a spam/email relay, the same way it stops login/reset brute-forcing.
 companyRouter.post('/listings/:id/inquiries', authRateLimiter(10), validate(listingInquirySchema), publicController.createListingInquiry);
 companyRouter.post('/contact', authRateLimiter(10), validate(generalContactSchema), publicController.createGeneralContact);
-
-// The platform home page's list of companies (name, logo, sign-in slug only).
-publicRouter.get('/organizations', async (req, res, next) => {
-  try { res.json({ success: true, data: await listPublicOrganizations() }); } catch (err) { next(err); }
-});
 
 publicRouter.use('/orgs/:orgSlug', companyRouter);
 publicRouter.use('/', companyRouter);

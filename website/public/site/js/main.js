@@ -235,35 +235,53 @@
     bubble.addEventListener('click', (e) => { if (e.target.closest('a')) dismiss(); });
   }
 
-  /* ───────── Contact form → WhatsApp / email (no backend required) ───────── */
-  const form = $('#contact-form');
-  if (form) {
-    const num = document.body.dataset.waNumber;
-    const compose = () => {
-      const d = Object.fromEntries(new FormData(form));
-      const lines = [
-        'Hello NTS Digital Solutions,',
-        `I'm ${d.name}${d.company ? ' from ' + d.company : ''}.`,
-        d.interest ? `Interested in: ${d.interest}` : '',
-        d.size ? `Portfolio size: ${d.size}` : '',
-        d.message ? `\n${d.message}` : '',
-        `\nReach me on: ${d.email}${d.phone ? ' / ' + d.phone : ''}`,
-      ].filter(Boolean);
-      return { text: lines.join('\n'), subject: `Demo request — ${d.company || d.name}` };
-    };
-    const toast = $('#form-status');
-    const say = (m) => { if (toast) toast.textContent = m; };
-    form.addEventListener('submit', (e) => {
+  /* ───────── Contact + demo forms → platform administrators (API) ───────── */
+  $$('form[data-api-form]').forEach((form) => {
+    const status = $('[data-status]', form);
+    const panel = form.parentElement.querySelector('.form-success');
+    const btn = $('button[type="submit"]', form);
+    const say = (msg, bad) => { if (!status) return; status.textContent = msg; status.style.color = bad ? '#ff8a8a' : ''; };
+    const fail = (name, msg) => { const el = form.elements[name]; if (el) { el.setAttribute('aria-invalid', 'true'); el.focus(); } say(msg, true); };
+
+    form.addEventListener('input', (e) => e.target.removeAttribute?.('aria-invalid'));
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!form.reportValidity()) return;
-      open(`https://wa.me/${num}?text=${encodeURIComponent(compose().text)}`, '_blank', 'noopener');
-      say('Opening WhatsApp with your message ready to send…');
+      $$('[aria-invalid]', form).forEach((el) => el.removeAttribute('aria-invalid'));
+      const d = Object.fromEntries(new FormData(form));
+      const clean = (v) => (typeof v === 'string' ? v.trim() : '');
+      if (!clean(d.name)) return fail('name', 'Please enter your name.');
+      if (form.dataset.kind === 'demo' && !clean(d.company)) return fail('company', 'Please enter your company.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(d.email))) return fail('email', 'Please enter a valid email address.');
+      if (form.dataset.kind === 'demo' && !clean(d.phone)) return fail('phone', 'Please enter a phone or WhatsApp number.');
+      if (form.dataset.kind === 'contact' && clean(d.message).length < 10) return fail('message', 'Please write a short message (at least 10 characters).');
+
+      const payload = { kind: form.dataset.kind, source: location.pathname };
+      for (const k of ['name', 'email', 'phone', 'company', 'interest', 'portfolioSize', 'message', 'website']) if (clean(d[k])) payload[k] = clean(d[k]);
+
+      btn.disabled = true; const label = btn.innerHTML; btn.textContent = 'Sending…'; say('Sending…');
+      try {
+        const res = await fetch('/api/v1/public/platform-inquiries', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error?.details?.[0]?.message || json?.error?.message || json?.message || 'Something went wrong. Please try again, or message us on WhatsApp.');
+        form.hidden = true;
+        if (panel) { panel.hidden = false; panel.focus(); panel.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' }); }
+      } catch (err) {
+        say(err.message || 'Could not send your message. Please try again, or message us on WhatsApp.', true);
+        btn.disabled = false; btn.innerHTML = label;
+      }
     });
-    $('[data-action="email"]', form)?.addEventListener('click', () => {
-      if (!form.reportValidity()) return;
-      const { text, subject } = compose();
-      location.href = `mailto:${form.dataset.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
-      say('Opening your email app…');
+  });
+
+  /* ───────── Hidden shortcut: click empty navbar space 5 times → platform admin sign-in ───────── */
+  if (header) {
+    let taps = 0, timer = 0;
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('a, button, input, select, textarea')) { taps = 0; return; } // only blank space counts
+      taps += 1; clearTimeout(timer);
+      timer = setTimeout(() => { taps = 0; }, 2500); // five clicks in a quick burst
+      if (taps >= 5) { taps = 0; location.assign('/platform-admin/login'); }
     });
   }
 })();

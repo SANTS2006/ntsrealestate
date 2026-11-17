@@ -1503,3 +1503,28 @@ model DealInstallment {
   @@unique([dealId, sequence])
   @@map("deal_installments")
 }
+
+// Contact messages and demo requests submitted from the public marketing
+// website. Read and worked by platform admins (see platformInquiry.service.js).
+// No relations on purpose: submissions are anonymous, and a restore must never
+// cascade into them.
+model PlatformInquiry {
+  id            String   @id @default(uuid()) @db.Uuid
+  kind          String // contact | demo
+  status        String   @default("new") // new | read | replied | archived
+  name          String
+  email         String
+  phone         String?
+  company       String?
+  interest      String?
+  portfolioSize String?  @map("portfolio_size")
+  message       String?
+  source        String? // website page the form was sent from
+  ipAddress     String?  @map("ip_address")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([status, createdAt])
+  @@index([kind])
+  @@map("platform_inquiries")
+}

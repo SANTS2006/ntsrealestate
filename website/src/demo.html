@@ -1,0 +1,45 @@
+<!--meta {"title":"Request a Demo | NTS Real Estate System","desc":"Book a personalised walkthrough of the NTS Real Estate System. Tell us about your portfolio and we will show the platform on your use case.","scene":"lattice","nav":"demo","priority":0.9,"crumb":"Request a demo"} -->
+<section class="page-hero">
+  <div class="container">
+    <div class="crumbs reveal"><a href="index.html">Home</a> / Request a demo</div>
+    <span class="eyebrow reveal">Request a demo</span>
+    <h1 class="h1" style="font-size:clamp(38px,5.6vw,72px)" data-split>See it running on your portfolio</h1>
+    <p class="lead reveal">Tell us a little about your business. We'll arrange a personalised walkthrough and send a clear, tailored proposal.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px">
+  <div class="container contact-grid">
+    <div class="reveal"><article class="card" style="padding:clamp(24px,4vw,40px)">
+      <h2 style="font-size:26px;margin-bottom:8px">Request your demo</h2>
+      <p style="margin:0 0 26px">It takes a minute. A platform administrator will contact you to agree a time.</p>
+      <form class="form" id="demo-form" data-api-form data-kind="demo" novalidate>
+        <div class="row">
+          <div class="field"><label for="d-name">Full name *</label><input id="d-name" name="name" required maxlength="120" autocomplete="name"></div>
+          <div class="field"><label for="d-company">Company *</label><input id="d-company" name="company" required maxlength="160" autocomplete="organization"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="d-email">Work email *</label><input id="d-email" name="email" type="email" required maxlength="200" autocomplete="email"></div>
+          <div class="field"><label for="d-phone">Phone / WhatsApp *</label><input id="d-phone" name="phone" type="tel" required maxlength="30" autocomplete="tel"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label for="d-size">Portfolio size</label><select id="d-size" name="portfolioSize"><option value="">Select…</option><option>Under 20 units</option><option>20–100 units</option><option>100–500 units</option><option>500+ units</option></select></div>
+          <div class="field"><label for="d-interest">Main interest</label><select id="d-interest" name="interest"><option value="">Select…</option><option>Full platform</option><option>Leases &amp; invoicing</option><option>Maintenance &amp; vendors</option><option>Tenant portal</option><option>Land &amp; deals</option><option>Reporting for owners</option></select></div>
+        </div>
+        <div class="field"><label for="d-msg">Anything we should know?</label><textarea id="d-msg" name="message" maxlength="3000" placeholder="How do you manage property today? Any must-have features?"></textarea></div>
+        <div class="hp" aria-hidden="true"><label>Leave this field empty<input name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Request demo {{i:arrow}}</button></div>
+        <p class="form-note" data-status role="status" aria-live="polite">We only use your details to arrange the demo. See our <a href="privacy.html" style="color:var(--cyan)">privacy policy</a>.</p>
+      </form>
+      <div class="form-success" hidden tabindex="-1"><div class="ico">{{i:check}}</div><h3>Demo request received</h3><p data-success-text>Thank you — your message has reached the platform team and we'll reply shortly.</p><a class="btn btn-wa btn-sm" href="{{WA}}" target="_blank" rel="noopener" data-wa>{{i:whatsapp}} Also message us on WhatsApp</a></div>
+    </article></div>
+
+    <div class="reveal right" data-delay="150">
+      <article class="card"><h3>What happens next?</h3><ul class="ticks"><li>{{i:check}}We reply to agree a time that suits you</li><li>{{i:check}}You see the platform on your own use case</li><li>{{i:check}}You get a clear, tailored proposal</li></ul></article>
+      <div style="height:14px"></div>
+      <a href="{{WA}}" target="_blank" rel="noopener" data-wa><article class="card channel wa" data-tilt><div class="ico">{{i:whatsapp}}</div><div><small>WhatsApp — fastest reply</small><b>{{PHONE}}</b></div></article></a>
+      <a href="tel:{{TEL}}"><article class="card channel" data-tilt><div class="ico">{{i:phone}}</div><div><small>Call us</small><b>{{PHONE}}</b></div></article></a>
+      <a href="mailto:{{EMAIL}}"><article class="card channel" data-tilt><div class="ico">{{i:mail}}</div><div><small>Email</small><b>{{EMAIL}}</b></div></article></a>
+    </div>
+  </div>
+</section>

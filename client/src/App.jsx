@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from './utils/lazyWithRetry.js';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { BrandingProvider } from './contexts/BrandingContext.jsx';
 import { PlatformAdminProvider } from './contexts/PlatformAdminContext.jsx';
@@ -8,7 +8,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute.jsx';
 import { PlatformAdminProtectedRoute } from './components/auth/PlatformAdminProtectedRoute.jsx';
 import { DashboardLayout } from './layouts/DashboardLayout.jsx';
 import { LoadingState } from './components/ui/Spinner.jsx';
-import LandingPage from './pages/LandingPage.jsx';
+import { WebsiteRedirect } from './components/WebsiteRedirect.jsx';
 import { BareAuthRedirect } from './components/auth/BareAuthRedirect.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RentPage from './pages/auth/RentPage.jsx';
@@ -54,6 +54,7 @@ const NotificationsPage = lazy(() => import('./pages/notifications/Notifications
 const AuditLogsPage = lazy(() => import('./pages/audit/AuditLogsPage.jsx'));
 const ReferralsPage = lazy(() => import('./pages/referrals/ReferralsPage.jsx'));
 const ChatPage = lazy(() => import('./pages/chat/ChatPage.jsx'));
+const PlatformAdminInquiriesPage = lazy(() => import('./pages/platformAdmin/PlatformAdminInquiriesPage.jsx'));
 const PlatformAdminSupportPage = lazy(() => import('./pages/platformAdmin/PlatformAdminSupportPage.jsx'));
 const AgentsPage = lazy(() => import('./pages/agents/AgentsPage.jsx'));
 const PlatformAdminMaintenancePage = lazy(() => import('./pages/platformAdmin/PlatformAdminMaintenancePage.jsx'));
@@ -75,7 +76,8 @@ export default function App() {
       <BrandingProvider>
         <PlatformAdminProvider>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            {/* "/" is the public website (served by the API server, see server/src/website.js). */}
+            <Route path="/" element={<WebsiteRedirect />} />
 
             {/* Every tenant's own branded auth flow, namespaced by their
                 URL name (see contexts/BrandingContext.jsx and
@@ -105,6 +107,7 @@ export default function App() {
                 <Route path="/platform-admin" element={<Suspense fallback={<LoadingState />}><PlatformAdminOverviewPage /></Suspense>} />
                 <Route path="/platform-admin/organizations" element={<Suspense fallback={<LoadingState />}><PlatformAdminOrganizationsPage /></Suspense>} />
                 <Route path="/platform-admin/administrators" element={<Suspense fallback={<LoadingState />}><PlatformAdminAdministratorsPage /></Suspense>} />
+                <Route path="/platform-admin/inquiries" element={<Suspense fallback={<LoadingState />}><PlatformAdminInquiriesPage /></Suspense>} />
                 <Route path="/platform-admin/support" element={<Suspense fallback={<LoadingState />}><PlatformAdminSupportPage /></Suspense>} />
                 <Route path="/platform-admin/maintenance" element={<Suspense fallback={<LoadingState />}><PlatformAdminMaintenancePage /></Suspense>} />
                 <Route path="/platform-admin/backups" element={<Suspense fallback={<LoadingState />}><PlatformAdminBackupsPage /></Suspense>} />
@@ -160,7 +163,7 @@ export default function App() {
               </Route>
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<WebsiteRedirect />} />
           </Routes>
         </PlatformAdminProvider>
       </BrandingProvider>

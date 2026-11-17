@@ -438,3 +438,41 @@ export function maintenanceAssignedTenantEmail({ org, firstName, request, vendor
     }),
   };
 }
+
+// Sent to the platform team when someone submits the public website's
+// Contact or Request-a-demo form (see platformInquiry.service.js).
+export function platformInquiryEmail({ kind, name, email, phone, company, interest, portfolioSize, message }) {
+  const isDemo = kind === 'demo';
+  const who = escapeHtml(name);
+  const rows = [
+    { label: 'Email', value: escapeHtml(email) },
+    phone && { label: 'Phone / WhatsApp', value: escapeHtml(phone) },
+    company && { label: 'Company', value: escapeHtml(company) },
+    interest && { label: isDemo ? 'Main interest' : 'Topic', value: escapeHtml(interest) },
+    portfolioSize && { label: 'Portfolio size', value: escapeHtml(portfolioSize) },
+  ].filter(Boolean);
+  const text = [
+    `${isDemo ? 'Demo request' : 'Contact message'} from ${name} <${email}>`,
+    phone && `Phone: ${phone}`,
+    company && `Company: ${company}`,
+    interest && `Interest: ${interest}`,
+    portfolioSize && `Portfolio: ${portfolioSize}`,
+    message && `\n${message}`,
+    `\nOpen in the platform console: ${appBaseUrl()}/platform-admin/inquiries`,
+  ].filter(Boolean).join('\n');
+  return {
+    subject: isDemo ? `Demo request from ${name}${company ? ` (${company})` : ''}` : `New website message from ${name}`,
+    text,
+    html: renderEmail({
+      headerLabel: isDemo ? 'Demo Request' : 'Contact Form',
+      eyebrow: 'Website inquiry',
+      heading: isDemo ? 'New demo request' : 'New message from the website',
+      paragraphs: [
+        `<strong>${who}</strong> ${isDemo ? 'requested a demo' : 'sent a message'} through the public website.`,
+        ...(message ? [`<em>${escapeHtml(message).replace(/\n/g, '<br>')}</em>`] : []),
+      ],
+      detailsRows: rows,
+      cta: { icon: '📩', heading: 'Reply to this inquiry', description: 'It is also saved in the platform console under Inquiries.', href: `mailto:${encodeURIComponent(email)}`, buttonText: 'Reply by Email' },
+    }),
+  };
+}

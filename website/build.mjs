@@ -1,16 +1,23 @@
 // Static site builder for the NTS Real Estate System marketing website.
 //
-//   node website/build.mjs
+//   node website/build.mjs            (or: npm run build:website)
 //
 // Reads every page fragment in website/src/*.html, wraps it with the shared
-// <head>, header, footer and WhatsApp button, and writes the finished page to
-// website/<name>.html. Contact details live in ONE place (CONFIG below).
+// <head> (SEO tags + structured data), header, footer and WhatsApp button, and
+// writes the finished pages to website/public/ — the folder the API server
+// serves at "/". It also writes sitemap.xml and robots.txt.
+//
+// Set SITE_URL (e.g. https://www.example.com) so canonical links, social tags
+// and the sitemap carry your real domain. On Render, RENDER_EXTERNAL_URL is
+// used automatically. Contact details live in ONE place (CONFIG below).
 
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
+const outDir = join(root, 'public');
+mkdirSync(outDir, { recursive: true });
 
 // ───────────────────────── Contact + brand configuration ─────────────────────────
 const CONFIG = {
@@ -23,6 +30,7 @@ const CONFIG = {
   waDefaultText:
     "Hello NTS Digital Solutions, I'd like to know more about the NTS Real Estate System.",
   year: new Date().getFullYear(),
+  siteUrl: (process.env.SITE_URL || process.env.RENDER_EXTERNAL_URL || 'https://ntsrealestate.onrender.com').replace(/[/]+$/, ''),
 };
 const waUrl = (text = CONFIG.waDefaultText) =>
   `https://wa.me/${CONFIG.waNumber}?text=${encodeURIComponent(text)}`;
@@ -70,24 +78,26 @@ const ICONS = {
 };
 
 // ───────────────────────── Navigation ─────────────────────────
+// [key, label, path]. Paths are clean URLs ("/features"); the server resolves them to the built .html files.
 const NAV = [
-  ['features', 'Features', 'features.html'],
-  ['solutions', 'Solutions', 'solutions.html'],
-  ['how', 'How it works', 'how-it-works.html'],
-  ['security', 'Security', 'security.html'],
-  ['pricing', 'Pricing', 'pricing.html'],
-  ['about', 'About', 'about.html'],
+  ['features', 'Features', '/features'],
+  ['solutions', 'Solutions', '/solutions'],
+  ['how', 'How it works', '/how-it-works'],
+  ['security', 'Security', '/security'],
+  ['pricing', 'Pricing', '/pricing'],
+  ['about', 'About', '/about'],
+  ['contact', 'Contact', '/contact'],
 ];
 
 const header = (active) => `
 <header class="site-header" id="top">
   <div class="container nav">
-    <a class="brand" href="index.html" aria-label="${CONFIG.brand} home">
-      <img src="assets/logo.png" alt="" width="40" height="40"><span>NTS <em>Real Estate</em></span>
+    <a class="brand" href="/" aria-label="${CONFIG.brand} home">
+      <img src="/site/img/logo.png" alt="" width="40" height="40"><span>NTS <em>Real Estate</em></span>
     </a>
     <nav class="nav-links" id="nav-links" aria-label="Main">
       ${NAV.map(([k, label, href]) => `<a href="${href}"${k === active ? ' class="active" aria-current="page"' : ''}>${label}</a>`).join('\n      ')}
-      <a class="btn btn-primary nav-cta" href="contact.html">Book a demo {{i:arrow}}</a>
+      <a class="btn btn-primary nav-cta" href="/demo">Request a demo {{i:arrow}}</a>
     </nav>
     <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">{{i:menu}}</button>
   </div>
@@ -103,13 +113,13 @@ const footer = () => `
         <p>Talk to our team and get a walkthrough built around how you actually manage property.</p>
       </div>
       <div class="foot-cta-btns">
-        <a class="btn btn-primary" href="contact.html">Book a demo {{i:arrow}}</a>
+        <a class="btn btn-primary" href="/demo">Request a demo {{i:arrow}}</a>
         <a class="btn btn-wa" href="${waUrl()}" target="_blank" rel="noopener" data-wa>{{i:whatsapp}} Chat on WhatsApp</a>
       </div>
     </div>
     <div class="foot-grid">
       <div class="foot-brand">
-        <a class="brand" href="index.html"><img src="assets/logo.png" alt="" width="40" height="40"><span>NTS <em>Real Estate</em></span></a>
+        <a class="brand" href="/"><img src="/site/img/logo.png" alt="" width="40" height="40" loading="lazy"><span>NTS <em>Real Estate</em></span></a>
         <p>Property, tenant, lease, finance and maintenance management for real estate teams. Built by ${CONFIG.company}.</p>
         <ul class="contact-list">
           <li>{{i:mail}}<a href="mailto:${CONFIG.email}">${CONFIG.email}</a></li>
@@ -117,18 +127,18 @@ const footer = () => `
           <li>{{i:whatsapp}}<a href="${waUrl()}" target="_blank" rel="noopener" data-wa>WhatsApp ${CONFIG.phoneDisplay}</a></li>
         </ul>
       </div>
-      <div>
+      <nav aria-label="Product">
         <h3>Product</h3>
-        <a href="features.html">Features</a><a href="solutions.html">Solutions</a><a href="how-it-works.html">How it works</a><a href="pricing.html">Pricing</a>
-      </div>
-      <div>
+        <a href="/features">Features</a><a href="/solutions">Solutions</a><a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a>
+      </nav>
+      <nav aria-label="Company">
         <h3>Company</h3>
-        <a href="about.html">About</a><a href="security.html">Security</a><a href="faq.html">FAQ</a><a href="contact.html">Contact</a>
-      </div>
-      <div>
+        <a href="/about">About</a><a href="/security">Security</a><a href="/faq">FAQ</a><a href="/contact">Contact us</a><a href="/demo">Request a demo</a>
+      </nav>
+      <nav aria-label="Legal">
         <h3>Legal</h3>
-        <a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of service</a>
-      </div>
+        <a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a>
+      </nav>
     </div>
     <div class="foot-base">
       <span>© ${CONFIG.year} ${CONFIG.company}. All rights reserved.</span>
@@ -149,28 +159,89 @@ const footer = () => `
 </div>
 <button class="to-top" id="to-top" aria-label="Back to top">{{i:up}}</button>`;
 
+// ───────────────────────── SEO helpers ─────────────────────────
 const SCENES = new Set(['building', 'lattice']);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const stripTags = (s) => s.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\{\{i:[a-z]+\}\}/g, '').replace(/\s+/g, ' ').trim();
+const abs = (p) => `${CONFIG.siteUrl}${p}`;
+const OG_IMAGE = abs('/site/img/logo.png');
 
-function render(meta, body) {
-  const title = meta.home ? meta.title : `${meta.title} · ${CONFIG.brand}`;
+/** Structured data (JSON-LD) for the page: organisation, site, breadcrumbs and page-type specifics. */
+function jsonLd(meta, body, path) {
+  const orgId = abs('/#organization');
+  const graph = [
+    {
+      '@type': 'Organization', '@id': orgId, name: CONFIG.company, url: abs('/'),
+      logo: { '@type': 'ImageObject', url: OG_IMAGE, width: 512, height: 512 },
+      email: CONFIG.email, telephone: CONFIG.phoneTel,
+      contactPoint: [{ '@type': 'ContactPoint', contactType: 'sales and customer support', telephone: CONFIG.phoneTel, email: CONFIG.email, availableLanguage: 'English' }],
+    },
+    { '@type': 'WebSite', '@id': abs('/#website'), url: abs('/'), name: CONFIG.brand, publisher: { '@id': orgId }, inLanguage: 'en' },
+  ];
+  if (meta.home) {
+    graph.push({
+      '@type': 'SoftwareApplication', name: CONFIG.brand, applicationCategory: 'BusinessApplication', operatingSystem: 'Web',
+      description: meta.desc, url: abs('/'), publisher: { '@id': orgId },
+      featureList: ['Properties, buildings and units', 'Tenants and leases', 'Invoicing and payments', 'Expenses with approvals', 'Maintenance and work orders', 'Inspections and documents', 'Land and deals', 'Reports and audit log', 'Role-based access and MFA'],
+    });
+  } else {
+    graph.push({
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
+        { '@type': 'ListItem', position: 2, name: meta.crumb || meta.title, item: abs(path) },
+      ],
+    });
+    graph.push({ '@type': meta.pageType || 'WebPage', '@id': abs(path) + '#webpage', url: abs(path), name: meta.title, description: meta.desc, isPartOf: { '@id': abs('/#website') }, about: { '@id': orgId } });
+  }
+  if (meta.faq) {
+    const items = [...body.matchAll(/<details[^>]*><summary>([\s\S]*?)<\/summary><p>([\s\S]*?)<\/p><\/details>/g)];
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: items.map(([, q, a]) => ({ '@type': 'Question', name: stripTags(q), acceptedAnswer: { '@type': 'Answer', text: stripTags(a) } })),
+    });
+  }
+  // "<" is escaped so the JSON can never close its own <script> element.
+  return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
+}
+
+function render(meta, body, path) {
   const scene = SCENES.has(meta.scene) ? meta.scene : '';
+  const url = abs(path);
+  const robots = meta.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large, max-snippet:-1';
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<meta name="description" content="${meta.desc}">
+<title>${esc(meta.title)}</title>
+<meta name="description" content="${esc(meta.desc)}">
+${meta.keywords ? `<meta name="keywords" content="${esc(meta.keywords)}">\n` : ''}<meta name="robots" content="${robots}">
+<meta name="author" content="${CONFIG.company}">
 <meta name="theme-color" content="#05070f">
-<meta property="og:title" content="${title}">
-<meta property="og:description" content="${meta.desc}">
+<link rel="canonical" href="${url}">
+<link rel="icon" href="/site/img/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<link rel="icon" href="assets/favicon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-<script>document.documentElement.classList.add('js');</script>
+<meta property="og:site_name" content="${CONFIG.brand}">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="${esc(meta.title)}">
+<meta property="og:description" content="${esc(meta.desc)}">
+<meta property="og:url" content="${url}">
+<meta property="og:image" content="${OG_IMAGE}">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:image:alt" content="${CONFIG.brand} logo">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${esc(meta.title)}">
+<meta name="twitter:description" content="${esc(meta.desc)}">
+<meta name="twitter:image" content="${OG_IMAGE}">
+<link rel="preload" href="/site/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/site/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/site/css/fonts.css">
+<link rel="stylesheet" href="/site/css/style.css">
+<script src="/site/js/boot.js"></script>
+<script type="application/ld+json">${jsonLd(meta, body, path)}</script>
 </head>
 <body data-wa-number="${CONFIG.waNumber}"${scene ? ` data-scene="${scene}"` : ''}>
 <a class="skip" href="#main">Skip to content</a>
@@ -179,8 +250,8 @@ ${header(meta.nav)}
 ${body}
 </main>
 ${footer()}
-${scene ? '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>\n<script src="js/scene.js" defer></script>' : ''}
-<script src="js/main.js" defer></script>
+${scene ? '<script src="/site/js/three.min.js" defer></script>\n<script src="/site/js/scene.js" defer></script>' : ''}
+<script src="/site/js/main.js" defer></script>
 </body>
 </html>
 `;
@@ -188,6 +259,10 @@ ${scene ? '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/thr
 
 function fill(html) {
   return html
+    // authoring convenience: page fragments may use plain "x.html" links; publish them as clean URLs
+    .replace(/href="index\.html"/g, 'href="/"')
+    .replace(/href="([a-z0-9-]+)\.html"/g, 'href="/$1"')
+    .replaceAll('src="assets/logo.png"', 'src="/site/img/logo.png"')
     .replace(/\{\{i:([a-z]+)\}\}/g, (_, n) => {
       if (!ICONS[n]) throw new Error(`Unknown icon: ${n}`);
       return ICONS[n];
@@ -201,13 +276,36 @@ function fill(html) {
     .replaceAll('{{BRAND}}', CONFIG.brand);
 }
 
+// ───────────────────────── Build ─────────────────────────
 const srcDir = join(root, 'src');
+const today = new Date().toISOString().slice(0, 10);
+const sitemap = [];
 for (const file of readdirSync(srcDir).filter((f) => f.endsWith('.html'))) {
   const raw = readFileSync(join(srcDir, file), 'utf8');
   const m = raw.match(/^<!--meta\s*(\{[\s\S]*?\})\s*-->\s*/);
   if (!m) throw new Error(`${file}: missing <!--meta {...}--> header`);
   const meta = JSON.parse(m[1]);
-  const out = fill(render(meta, raw.slice(m[0].length)));
-  writeFileSync(join(root, file === 'home.html' ? 'index.html' : file), out);
-  console.log('built', file === 'home.html' ? 'index.html' : file);
+  const name = file.replace(/\.html$/, '');
+  const path = name === 'home' ? '/' : `/${name}`;
+  const outName = name === 'home' ? 'index.html' : file;
+  if (meta.title.length > 65) console.warn(`  ! ${file}: title is ${meta.title.length} chars (keep ≤ 60-65)`);
+  if (meta.desc.length > 165 || meta.desc.length < 70) console.warn(`  ! ${file}: description is ${meta.desc.length} chars (aim for 70-160)`);
+  writeFileSync(join(outDir, outName), fill(render(meta, raw.slice(m[0].length), path)));
+  if (!meta.noindex) sitemap.push({ path, priority: meta.priority ?? 0.6 });
+  console.log('built', outName);
 }
+
+sitemap.sort((a, b) => b.priority - a.priority || a.path.localeCompare(b.path));
+writeFileSync(join(outDir, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemap.map((s) => `  <url><loc>${abs(s.path)}</loc><lastmod>${today}</lastmod><priority>${s.priority.toFixed(1)}</priority></url>`).join('\n')}
+</urlset>
+`);
+writeFileSync(join(outDir, 'robots.txt'), `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /platform-admin
+
+Sitemap: ${abs('/sitemap.xml')}
+`);
+console.log(`built sitemap.xml (${sitemap.length} URLs) and robots.txt for ${CONFIG.siteUrl}`);

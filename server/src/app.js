@@ -18,6 +18,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { idempotency } from './middleware/idempotency.js';
 import { requestOriginMiddleware } from './utils/appUrl.js';
 import { v1Router } from './routes/v1/index.js';
+import { websiteRouter } from './website.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // The free-hosting deployment target (see docs/deployment/render.md) runs
@@ -53,6 +54,9 @@ export function createApp() {
   app.use(helmetMiddleware);
   app.use(corsMiddleware);
   app.use(originCheckMiddleware);
+  // The public marketing website is the system's home page. Served before the
+  // rate limiter and session so reading the site is cheap (see website.js).
+  app.use(websiteRouter());
   app.use(generalRateLimiter);
 
   // Body size limits guard against oversized-payload DoS; JSON only for the

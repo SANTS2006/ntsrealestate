@@ -391,3 +391,12 @@ a.reveal, a:has(> .card) { display: block; }
   .js .reveal, .js [data-split] .w > span { opacity: 1; transform: none; }
   .marquee-track { animation: none; }
 }
+
+/* contact / demo forms */
+.hp { position: absolute !important; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.form-success { display: grid; gap: 14px; justify-items: start; padding: 10px 0; }
+.form-success[hidden] { display: none; }
+.form-success .ico { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: rgba(37, 211, 102, 0.15); border: 1px solid rgba(37, 211, 102, 0.4); color: var(--green); }
+.field input[aria-invalid="true"], .field textarea[aria-invalid="true"] { border-color: #ff6b6b; box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.14); }
+
+.form[hidden] { display: none; }

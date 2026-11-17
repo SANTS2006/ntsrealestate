@@ -7,6 +7,8 @@ import { validate } from '../../middleware/validate.js';
 import * as platformAdminController from '../../controllers/platformAdmin.controller.js';
 import { mfaChallengeSchema, mfaConfirmSchema, mfaDisableSchema } from '../../validators/auth.validators.js';
 import * as backupController from '../../controllers/backup.controller.js';
+import * as platformInquiryController from '../../controllers/platformInquiry.controller.js';
+import { listPlatformInquiriesSchema, updatePlatformInquirySchema, inquiryIdParamSchema } from '../../validators/platformInquiry.validators.js';
 import { listBackupsSchema, listRestoresSchema, backupIdSchema, policySchema, prepareRestoreSchema, startRestoreSchema } from '../../validators/backup.validators.js';
 import {
   platformAdminLoginSchema, platformGoogleLoginSchema, createOrganizationSchema, organizationStatusSchema, platformForgotPasswordSchema,
@@ -39,6 +41,11 @@ platformAdminRouter.get('/maintenance', authenticatePlatformAdmin, platformAdmin
 platformAdminRouter.put('/maintenance', authenticatePlatformAdmin, csrfProtection, validate(maintenanceSchema), platformAdminController.setMaintenance);
 
 platformAdminRouter.get('/overview', authenticatePlatformAdmin, platformAdminController.overview);
+
+// Contact messages and demo requests from the public website.
+platformAdminRouter.get('/inquiries', authenticatePlatformAdmin, validate(listPlatformInquiriesSchema), platformInquiryController.list);
+platformAdminRouter.patch('/inquiries/:id', authenticatePlatformAdmin, csrfProtection, validate(updatePlatformInquirySchema), platformInquiryController.setStatus);
+platformAdminRouter.delete('/inquiries/:id', authenticatePlatformAdmin, csrfProtection, validate(inquiryIdParamSchema), platformInquiryController.remove);
 
 platformAdminRouter.get('/admins', authenticatePlatformAdmin, platformAdminController.listAdmins);
 platformAdminRouter.post('/admins', authenticatePlatformAdmin, csrfProtection, validate(createPlatformAdminSchema), platformAdminController.createAdmin);

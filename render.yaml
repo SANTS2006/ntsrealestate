@@ -16,7 +16,7 @@ services:
     # below — npm otherwise skips devDependencies (that's where `vite` lives,
     # needed to build the client) whenever NODE_ENV=production is present in
     # the environment during install, which Render's build step inherits.
-    buildCommand: npm install --include=dev && npm run build:client && npm run build:server && npm run deploy:migrate
+    buildCommand: npm install --include=dev && npm run build:website && npm run build:client && npm run build:server && npm run deploy:migrate
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -44,6 +44,10 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
+        sync: false
+      # Public website address for canonical links and the sitemap. Optional: on
+      # Render it defaults to the service URL; set it when you add a custom domain.
+      - key: SITE_URL
         sync: false
       - key: PRIMARY_ORGANIZATION_ID
         sync: false

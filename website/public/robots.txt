@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /platform-admin
+
+Sitemap: https://ntsrealestate.onrender.com/sitemap.xml

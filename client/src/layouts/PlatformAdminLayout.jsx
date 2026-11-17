@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
-import { LogOut, LayoutDashboard, Building2, Users, UserCog, ScrollText, MessagesSquare, Wrench, DatabaseBackup, Menu, X, ChevronDown } from 'lucide-react';
+import { LogOut, LayoutDashboard, Building2, Users, UserCog, ScrollText, MessagesSquare, Inbox, Wrench, DatabaseBackup, Menu, X, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
 import { signOutWithNotice } from '../components/ui/SignOutOverlay.jsx';
 import { ThemeToggle } from '../components/ui/ThemeToggle.jsx';
@@ -10,12 +10,14 @@ import { useBranding } from '../contexts/BrandingContext.jsx';
 import { ChatProvider, useOptionalChat } from '../contexts/ChatContext.jsx';
 import { CallProvider } from '../contexts/CallContext.jsx';
 import { CallOverlay } from '../components/chat/CallOverlay.jsx';
+import { platformAdminApi } from '../api/platformAdmin.js';
 import { AdminAvatar } from '../components/platformAdmin/AdminAvatar.jsx';
 
 const NAV = [
   { to: '/platform-admin', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/platform-admin/organizations', label: 'Organizations', icon: Building2 },
   { to: '/platform-admin/administrators', label: 'Administrators', icon: Users },
+  { to: '/platform-admin/inquiries', label: 'Inquiries', icon: Inbox },
   { to: '/platform-admin/support', label: 'Support chat', icon: MessagesSquare },
   { to: '/platform-admin/maintenance', label: 'Maintenance', icon: Wrench },
   { to: '/platform-admin/backups', label: 'Backup & recovery', icon: DatabaseBackup },
@@ -49,6 +51,14 @@ function PlatformShell() {
   }, [enterPlatformMode, leavePlatformMode]);
   const { admin, logout } = usePlatformAdmin();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // New website inquiries waiting for someone to read them (badge on the Inquiries link).
+  const [unreadInquiries, setUnreadInquiries] = useState(0);
+  useEffect(() => {
+    const refresh = () => platformAdminApi.inquiries({ pageSize: 1, status: 'new' }).then((res) => setUnreadInquiries(res.data?.unread ?? 0)).catch(() => {});
+    refresh();
+    window.addEventListener('inquiries:changed', refresh);
+    return () => window.removeEventListener('inquiries:changed', refresh);
+  }, [location.pathname]);
   // The drawer closes whenever the person navigates.
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
 
@@ -85,6 +95,9 @@ function PlatformShell() {
         >
           <Icon size={17} aria-hidden="true" />
           <span className="truncate">{label}</span>
+          {to.endsWith('/inquiries') && unreadInquiries > 0 && (
+            <span className="ml-auto rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{unreadInquiries}</span>
+          )}
           {to.endsWith('/support') && (chat?.totalUnread ?? 0) > 0 && (
             <span className="ml-auto rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">{chat.totalUnread}</span>
           )}

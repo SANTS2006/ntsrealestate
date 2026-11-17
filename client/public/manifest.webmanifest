@@ -2,7 +2,7 @@
   "name": "NTS Real Estate System",
   "short_name": "NTS Real Estate",
   "description": "Manage properties, tenants, leases, finances and maintenance.",
-  "start_url": "/",
+  "start_url": "/home",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

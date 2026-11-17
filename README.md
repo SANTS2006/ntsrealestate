@@ -5,6 +5,10 @@ units, owners, tenants, leases, invoicing, payments, expenses, maintenance, vend
 inspections, documents, notifications, reports, and audit logging — built for a real
 property management company, not a demo.
 
+## Public website
+
+The marketing website in [website/](website/README.md) is the system's home page (served at `/`). It has a Contact form and a Request-a-demo form that land in the platform console under **Inquiries**; there is no sign-in button on it. Tenants and staff sign in at their company's own link (`/<company>/login`); platform admins use `/platform-admin/login`.
+
 ## Technology stack
 
 | Layer | Technology |

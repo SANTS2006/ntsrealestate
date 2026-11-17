@@ -22,18 +22,6 @@
         "server"
       ],
       "port": 5000
-    },
-    {
-      "name": "ntsrealestate-website",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "5190",
-        "--directory",
-        "website"
-      ],
-      "port": 5190
     }
   ]
 }
