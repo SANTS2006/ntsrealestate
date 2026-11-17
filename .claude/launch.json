@@ -4,14 +4,36 @@
     {
       "name": "ntsrealestate-client",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "client"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "client"
+      ],
       "port": 5173
     },
     {
       "name": "ntsrealestate-server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "server"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "server"
+      ],
       "port": 5000
+    },
+    {
+      "name": "ntsrealestate-website",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5190",
+        "--directory",
+        "website"
+      ],
+      "port": 5190
     }
   ]
 }

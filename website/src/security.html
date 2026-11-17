@@ -1,0 +1,59 @@
+<!--meta {"title":"Security","desc":"How the NTS Real Estate System protects your data: organisation isolation, role-based access, MFA, Argon2id, CSRF protection, private document storage and a dedicated security test suite.","scene":"lattice","nav":"security"} -->
+<section class="page-hero">
+  <div class="container">
+    <div class="crumbs reveal"><a href="index.html">Home</a> / Security</div>
+    <span class="eyebrow reveal">Security</span>
+    <h1 class="h1" style="font-size:clamp(38px,5.6vw,72px)" data-split>Built to protect people's homes and money</h1>
+    <p class="lead reveal">Property records contain identities, leases and payments. We treat them that way — with layered protection and tests that attack our own system.</p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px">
+  <div class="container split">
+    <div class="iso reveal zoom" data-iso aria-hidden="true">
+      <div class="iso-stack">
+        <div class="iso-layer" style="--z:0"><span>Audit &amp; backups</span></div>
+        <div class="iso-layer" style="--z:1"><span>Org data isolation</span></div>
+        <div class="iso-layer" style="--z:2"><span>Roles &amp; permissions</span></div>
+        <div class="iso-layer" style="--z:3"><span>MFA &amp; sessions</span></div>
+        <div class="iso-layer" style="--z:4"><span>Hardened API</span></div>
+      </div>
+    </div>
+    <div class="sec-head" style="margin:0">
+      <span class="eyebrow reveal">Defence in depth</span>
+      <h2 class="h2" data-split>Five layers between your data and the wrong hands</h2>
+      <p class="lead reveal">Each layer assumes the one above it could fail. Scroll and watch them separate.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt">
+  <div class="container">
+    <div class="grid-3">
+      <div class="reveal"><article class="card" data-tilt><div class="ico">{{i:lock}}</div><h3>Strong authentication</h3><p>Passwords hashed with Argon2id. Optional multi-factor authentication with recovery codes, and MFA secrets encrypted with AES-256-GCM.</p></article></div>
+      <div class="reveal" data-delay="100"><article class="card" data-tilt><div class="ico">{{i:users}}</div><h3>Hybrid sessions</h3><p>HttpOnly, Secure, SameSite cookies backed by Postgres for the web app; short-lived JWTs with rotation for mobile and API clients.</p></article></div>
+      <div class="reveal" data-delay="200"><article class="card" data-tilt><div class="ico">{{i:shield}}</div><h3>Role-based authorisation</h3><p>Permissions follow a clear resource:action model, with resource-level checks so users only reach records assigned to them.</p></article></div>
+      <div class="reveal"><article class="card" data-tilt><div class="ico">{{i:database}}</div><h3>Organisation isolation</h3><p>Every organisation's data is separated. Our tests probe cross-organisation access on each core resource type.</p></article></div>
+      <div class="reveal" data-delay="100"><article class="card" data-tilt><div class="ico">{{i:cloud}}</div><h3>Private documents</h3><p>Uploads are validated by file signature, names are sanitised and sensitive files are never publicly reachable.</p></article></div>
+      <div class="reveal" data-delay="200"><article class="card" data-tilt><div class="ico">{{i:eye}}</div><h3>Audit trail</h3><p>Important actions are logged so you can review who did what — and the platform has its own separate audit log.</p></article></div>
+      <div class="reveal"><article class="card" data-tilt><div class="ico">{{i:layers}}</div><h3>Hardened API</h3><p>Strict CORS allow-list, Helmet security headers, double-submit CSRF protection, validated inputs and rate limiting — tighter on sign-in routes.</p></article></div>
+      <div class="reveal" data-delay="100"><article class="card" data-tilt><div class="ico">{{i:wallet}}</div><h3>Financial integrity</h3><p>Idempotent payments, over-payment rejection, clean refund reversal and void protection keep the books honest.</p></article></div>
+      <div class="reveal" data-delay="200"><article class="card" data-tilt><div class="ico">{{i:database}}</div><h3>Backups &amp; recovery</h3><p>Platform-level backup and restore tooling, with documented recovery and reliability procedures.</p></article></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="sec-head center">
+      <span class="eyebrow reveal">Proof, not promises</span>
+      <h2 class="h2" data-split>We test the attacks, not just the happy path</h2>
+    </div>
+    <div class="grid-3">
+      <div class="reveal"><article class="card" data-tilt style="text-align:center"><div class="stat"><b data-count="41">0</b><span>Unit tests: hashing, encryption, JWTs, upload validation</span></div></article></div>
+      <div class="reveal" data-delay="100"><article class="card" data-tilt style="text-align:center"><div class="stat"><b data-count="28">0</b><span>Integration tests against the real app and database</span></div></article></div>
+      <div class="reveal" data-delay="200"><article class="card" data-tilt style="text-align:center"><div class="stat"><b data-count="43">0</b><span>Security tests: IDOR, CSRF, injection, JWT forgery, brute force, malicious uploads</span></div></article></div>
+    </div>
+    <p class="form-note reveal" style="text-align:center;margin-top:30px">Want our security documentation or have a due-diligence questionnaire? <a href="contact.html" style="color:var(--cyan)">Get in touch</a>.</p>
+  </div>
+</section>

@@ -1,0 +1,269 @@
+/* NTS Real Estate System — site behaviour: smooth scroll, scroll effects, reveals, tilt, WhatsApp, forms */
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finePointer = matchMedia('(pointer: fine)').matches;
+  const safe = (fn) => { try { return fn(); } catch { return null; } };
+
+  /* ───────── Custom inertia scroll (mouse wheel only; keyboard / scrollbar / touch stay native) ───────── */
+  let smoothTo = (y) => scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
+  if (finePointer && !reduce) {
+    let target = scrollY, current = scrollY, raf = 0;
+    const max = () => document.documentElement.scrollHeight - innerHeight;
+    const tick = () => {
+      current += (target - current) * 0.085;
+      if (Math.abs(target - current) < 0.4) { current = target; scrollTo(0, current); raf = 0; return; }
+      scrollTo(0, current);
+      raf = requestAnimationFrame(tick);
+    };
+    addEventListener('wheel', (e) => {
+      if (e.ctrlKey || e.defaultPrevented) return;
+      if (e.target.closest('textarea, select, [data-native-scroll], .hs-track')) return;
+      e.preventDefault();
+      if (!raf) { target = current = scrollY; }
+      target = clamp(target + e.deltaY * (e.deltaMode === 1 ? 34 : 1), 0, max());
+      if (!raf) raf = requestAnimationFrame(tick);
+    }, { passive: false });
+    addEventListener('scroll', () => { if (!raf) target = current = scrollY; }, { passive: true });
+    smoothTo = (y) => { target = clamp(y, 0, max()); if (!raf) raf = requestAnimationFrame(tick); };
+  }
+
+  // in-page anchors
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || a.getAttribute('href') === '#') return;
+    const el = $(a.getAttribute('href'));
+    if (!el) return;
+    e.preventDefault();
+    smoothTo(el.getBoundingClientRect().top + scrollY - 90);
+  });
+
+  /* ───────── Header + mobile menu ───────── */
+  const header = $('.site-header');
+  const links = $('#nav-links');
+  const toggle = $('#nav-toggle');
+  const setMenu = (open) => {
+    links.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  };
+  toggle?.addEventListener('click', () => setMenu(!links.classList.contains('open')));
+  links?.addEventListener('click', (e) => { if (e.target.closest('a')) setMenu(false); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
+
+  /* ───────── Split headings into animated words ───────── */
+  $$('[data-split]').forEach((el) => {
+    const walk = (node) => {
+      [...node.childNodes].forEach((n) => {
+        if (n.nodeType === 3) {
+          const frag = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach((part) => {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.append(' '); return; }
+            const w = document.createElement('span'); w.className = 'w';
+            const s = document.createElement('span'); s.textContent = part; w.append(s);
+            frag.append(w);
+          });
+          n.replaceWith(frag);
+        } else if (n.nodeType === 1) walk(n);
+      });
+    };
+    walk(el);
+    $$('.w > span', el).forEach((s, i) => s.style.setProperty('--i', i));
+  });
+
+  /* ───────── Reveal on scroll + counters ───────── */
+  const countUp = (el) => {
+    const end = parseFloat(el.dataset.count), suffix = el.dataset.suffix || '';
+    if (reduce) { el.textContent = end + suffix; return; }
+    const t0 = performance.now(), dur = 1700;
+    const step = (t) => {
+      const p = clamp((t - t0) / dur), e = 1 - Math.pow(1 - p, 4);
+      el.textContent = Math.round(end * e) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      en.target.classList.add('in');
+      $$('[data-count]', en.target).forEach(countUp);
+      if (en.target.hasAttribute('data-count')) countUp(en.target);
+      io.unobserve(en.target);
+    });
+  }, { threshold: 0.14, rootMargin: '0px 0px -6% 0px' });
+  $$('.reveal, [data-split], [data-count]').forEach((el) => {
+    if (el.dataset.delay) el.style.setProperty('--d', el.dataset.delay + 'ms');
+    io.observe(el);
+  });
+  // safety net: never leave content hidden if observer misses (e.g. printing)
+  addEventListener('beforeprint', () => $$('.reveal, [data-split]').forEach((e) => e.classList.add('in')));
+
+  /* ───────── Card spotlight + 3D tilt ───────── */
+  if (finePointer) {
+    $$('.card, .face').forEach((c) => c.addEventListener('pointermove', (e) => {
+      const r = c.getBoundingClientRect();
+      c.style.setProperty('--mx', e.clientX - r.left + 'px');
+      c.style.setProperty('--my', e.clientY - r.top + 'px');
+    }));
+    if (!reduce) {
+      $$('[data-tilt]').forEach((c) => {
+        c.addEventListener('pointermove', (e) => {
+          const r = c.getBoundingClientRect();
+          const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+          c.style.transform = `perspective(900px) rotateY(${x * 9}deg) rotateX(${-y * 9}deg) translateZ(8px)`;
+        });
+        c.addEventListener('pointerleave', () => { c.style.transform = ''; });
+      });
+      // magnetic buttons
+      $$('.btn-primary, .btn-wa, .btn-ghost').forEach((b) => {
+        b.addEventListener('pointermove', (e) => {
+          const r = b.getBoundingClientRect();
+          b.style.setProperty('--bx', (e.clientX - r.left - r.width / 2) * 0.14 + 'px');
+          b.style.setProperty('--by', (e.clientY - r.top - r.height / 2) * 0.22 + 'px');
+        });
+        b.addEventListener('pointerleave', () => { b.style.setProperty('--bx', '0px'); b.style.setProperty('--by', '0px'); });
+      });
+    }
+  }
+  // flip cards: tap to flip on touch devices
+  $$('.flip').forEach((f) => {
+    f.addEventListener('click', () => { if (!finePointer) f.classList.toggle('on'); });
+    f.tabIndex = 0;
+    f.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); f.classList.toggle('on'); } });
+  });
+
+  /* ───────── Pinned horizontal scroll showcase ───────── */
+  const hsEls = $$('.hs');
+  const layoutHS = () => hsEls.forEach((hs) => {
+    const track = $('.hs-track', hs);
+    if (innerWidth <= 900) { hs.style.height = ''; track.style.transform = ''; return; }
+    const dist = Math.max(0, track.scrollWidth - innerWidth);
+    hs._dist = dist;
+    hs.style.height = dist + innerHeight + 'px';
+  });
+
+  /* ───────── Scroll-linked effects (one rAF-coalesced handler) ───────── */
+  const bar = $('.scroll-progress i');
+  const toTop = $('#to-top');
+  const parallax = $$('[data-parallax]');
+  const dash = $('[data-scroll3d]');
+  const iso = $('[data-iso]');
+  let lastY = scrollY, ticking = false, mx = 0, my = 0;
+  addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; if (dash) onScroll(); }, { passive: true });
+
+  function frame() {
+    ticking = false;
+    const y = scrollY, h = document.documentElement.scrollHeight - innerHeight;
+    if (bar) bar.style.transform = `scaleX(${h > 0 ? y / h : 0})`;
+    header?.classList.toggle('scrolled', y > 30);
+    header?.classList.toggle('hide', y > 520 && y > lastY + 2 && !links.classList.contains('open'));
+    if (y < lastY - 2) header?.classList.remove('hide');
+    lastY = y;
+    toTop?.classList.toggle('show', y > 900);
+
+    if (!reduce) parallax.forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.bottom < -200 || r.top > innerHeight + 200) return;
+      const k = parseFloat(el.dataset.parallax) || 0.15;
+      el.style.transform = `translate3d(0, ${(r.top + r.height / 2 - innerHeight / 2) * -k}px, 0)`;
+    });
+
+    hsEls.forEach((hs) => {
+      if (innerWidth <= 900 || !hs._dist) return;
+      const r = hs.getBoundingClientRect();
+      const p = clamp(-r.top / (hs.offsetHeight - innerHeight));
+      $('.hs-track', hs).style.transform = `translate3d(${-p * hs._dist}px,0,0)`;
+      const b = $('.hs-bar i', hs); if (b) b.style.transform = `scaleX(${p})`;
+    });
+
+    if (dash && !reduce) {
+      const r = dash.getBoundingClientRect();
+      const c = clamp((r.top + r.height / 2 - innerHeight / 2) / (innerHeight / 2), -1, 1);
+      dash.style.setProperty('--rx', 6 + Math.max(c, 0) * 26 + Math.min(c, 0) * 10 - my * 6 + 'deg');
+      dash.style.setProperty('--ry', -4 + c * -16 + mx * 10 + 'deg');
+      dash.style.setProperty('--rz', c * 2 + 'deg');
+    }
+    if (iso && !reduce) {
+      const r = iso.getBoundingClientRect();
+      const c = clamp((r.top + r.height / 2 - innerHeight / 2) / innerHeight, -1, 1);
+      iso.style.setProperty('--spread', 14 + (1 - Math.abs(c)) * 40 + 'px');
+      iso.style.setProperty('--spin', c * 40 + 'deg');
+    }
+    window.__scrollFx?.(y);
+  }
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', () => { layoutHS(); onScroll(); });
+  addEventListener('load', () => { layoutHS(); onScroll(); });
+  document.fonts?.ready.then(() => { layoutHS(); onScroll(); });
+  layoutHS(); onScroll();
+  toTop?.addEventListener('click', () => smoothTo(0));
+
+  // 3D layer legend, built from the layers' own labels
+  if (iso) {
+    const ul = document.createElement('ul'); ul.className = 'iso-legend';
+    $$('.iso-layer span', iso).reverse().forEach((s) => { const li = document.createElement('li'); li.textContent = s.textContent; ul.append(li); });
+    iso.append(ul);
+  }
+
+  /* ───────── Feature filter tabs ───────── */
+  const tabs = $$('.tab[data-filter]');
+  tabs.forEach((t) => t.addEventListener('click', () => {
+    tabs.forEach((x) => { x.classList.toggle('on', x === t); x.setAttribute('aria-pressed', String(x === t)); });
+    const f = t.dataset.filter;
+    $$('.fcard').forEach((c, i) => {
+      const show = f === 'all' || c.dataset.cat === f;
+      c.classList.toggle('off', !show);
+      if (show) { c.style.opacity = 0; c.style.transform = 'translateY(18px)'; setTimeout(() => { c.style.opacity = ''; c.style.transform = ''; }, 30 + i * 18); }
+    });
+  }));
+
+  /* ───────── WhatsApp: floating chat bubble ───────── */
+  const bubble = $('#wa-bubble');
+  if (bubble) {
+    const key = 'nts-wa-bubble';
+    if (!safe(() => sessionStorage.getItem(key))) {
+      setTimeout(() => { bubble.hidden = false; }, 7000);
+    }
+    const dismiss = () => { bubble.hidden = true; safe(() => sessionStorage.setItem(key, '1')); };
+    $('.wa-bubble-x', bubble).addEventListener('click', dismiss);
+    bubble.addEventListener('click', (e) => { if (e.target.closest('a')) dismiss(); });
+  }
+
+  /* ───────── Contact form → WhatsApp / email (no backend required) ───────── */
+  const form = $('#contact-form');
+  if (form) {
+    const num = document.body.dataset.waNumber;
+    const compose = () => {
+      const d = Object.fromEntries(new FormData(form));
+      const lines = [
+        'Hello NTS Digital Solutions,',
+        `I'm ${d.name}${d.company ? ' from ' + d.company : ''}.`,
+        d.interest ? `Interested in: ${d.interest}` : '',
+        d.size ? `Portfolio size: ${d.size}` : '',
+        d.message ? `\n${d.message}` : '',
+        `\nReach me on: ${d.email}${d.phone ? ' / ' + d.phone : ''}`,
+      ].filter(Boolean);
+      return { text: lines.join('\n'), subject: `Demo request — ${d.company || d.name}` };
+    };
+    const toast = $('#form-status');
+    const say = (m) => { if (toast) toast.textContent = m; };
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      open(`https://wa.me/${num}?text=${encodeURIComponent(compose().text)}`, '_blank', 'noopener');
+      say('Opening WhatsApp with your message ready to send…');
+    });
+    $('[data-action="email"]', form)?.addEventListener('click', () => {
+      if (!form.reportValidity()) return;
+      const { text, subject } = compose();
+      location.href = `mailto:${form.dataset.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+      say('Opening your email app…');
+    });
+  }
+})();
