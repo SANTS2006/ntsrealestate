@@ -106,24 +106,96 @@
   </div>
 </section>
 
-<!-- HORIZONTAL PINNED SHOWCASE -->
-<section class="hs" aria-label="Module showcase">
-  <div class="hs-sticky">
-    <div class="container hs-head">
-      <div class="sec-head" style="margin:0">
-        <span class="eyebrow">Core modules</span>
-        <h2 class="h2" data-split>Seven pillars. Zero gaps.</h2>
-      </div>
-      <div style="display:grid;gap:12px;justify-items:end"><p class="lead" style="max-width:360px">Keep scrolling — each pillar is a full module you can switch on for your team.</p><div class="hs-bar" style="width:100%"><i></i></div></div>
+<!-- PILLAR EXPLORER -->
+<section class="section pillars" data-pillars aria-label="Core modules">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow reveal">Core modules</span>
+      <h2 class="h2" data-split>Seven pillars. Zero gaps.</h2>
+      <p class="lead reveal">Every module shares one database, one permission model and one audit trail. Pick a pillar to see what it does.</p>
     </div>
-    <div class="hs-track">
-      <article class="card hs-card" data-tilt><span class="num">01</span><div class="ico">{{i:building}}</div><h3>Portfolio</h3><p>Properties, buildings and units with status, structure and assignments to the right managers.</p><ul class="ticks"><li>{{i:check}}Multi-building properties</li><li>{{i:check}}Unit-level status</li><li>{{i:check}}Owner linking</li></ul></article>
-      <article class="card hs-card" data-tilt><span class="num">02</span><div class="ico">{{i:file}}</div><h3>Leasing</h3><p>Tenants, leases and rentals managed end to end — with a self-service tenant portal.</p><ul class="ticks"><li>{{i:check}}Lease lifecycle</li><li>{{i:check}}Tenant self-service</li><li>{{i:check}}Document storage</li></ul></article>
-      <article class="card hs-card" data-tilt><span class="num">03</span><div class="ico">{{i:wallet}}</div><h3>Billing</h3><p>Invoices, payments, refunds and expenses with idempotent safeguards against double-charging.</p><ul class="ticks"><li>{{i:check}}Multiple payment methods</li><li>{{i:check}}Refund reversal</li><li>{{i:check}}Expense approvals</li></ul></article>
-      <article class="card hs-card" data-tilt><span class="num">04</span><div class="ico">{{i:wrench}}</div><h3>Operations</h3><p>Maintenance requests, work orders, vendors and inspections in a single workflow.</p><ul class="ticks"><li>{{i:check}}Priority levels</li><li>{{i:check}}Vendor directory</li><li>{{i:check}}Inspection reports</li></ul></article>
-      <article class="card hs-card" data-tilt><span class="num">05</span><div class="ico">{{i:land}}</div><h3>Land &amp; deals</h3><p>List land and sales deals, attach agents and manage instalment schedules.</p><ul class="ticks"><li>{{i:check}}Instalment plans</li><li>{{i:check}}Agent assignment</li><li>{{i:check}}Deal pipeline</li></ul></article>
-      <article class="card hs-card" data-tilt><span class="num">06</span><div class="ico">{{i:chat}}</div><h3>Communication</h3><p>Chat rooms, tenant messaging and notifications keep everyone in the loop.</p><ul class="ticks"><li>{{i:check}}Real-time chat</li><li>{{i:check}}File attachments</li><li>{{i:check}}In-app notifications</li></ul></article>
-      <article class="card hs-card" data-tilt><span class="num">07</span><div class="ico">{{i:chart}}</div><h3>Insights</h3><p>Occupancy, rent collection, maintenance and financial summary reports — plus a full audit trail.</p><ul class="ticks"><li>{{i:check}}Financial summary</li><li>{{i:check}}Audit log &amp; remarks</li><li>{{i:check}}Role-based access</li></ul></article>
+    <div class="pillars-wrap reveal">
+      <div class="pillar-tabs" role="tablist" aria-label="Pillars" aria-orientation="vertical">
+      <button class="pillar-tab on" role="tab" id="pt-0" aria-controls="pp-0" aria-selected="true" tabindex="0" data-i="0"><span class="n">01</span><span class="tt"><b>Portfolio</b><small>Properties, buildings & units</small></span>{{i:arrow}}</button>
+      <button class="pillar-tab" role="tab" id="pt-1" aria-controls="pp-1" aria-selected="false" tabindex="-1" data-i="1"><span class="n">02</span><span class="tt"><b>Leasing</b><small>Tenants, leases & the tenant portal</small></span>{{i:arrow}}</button>
+      <button class="pillar-tab" role="tab" id="pt-2" aria-controls="pp-2" aria-selected="false" tabindex="-1" data-i="2"><span class="n">03</span><span class="tt"><b>Billing</b><small>Invoices, payments & expenses</small></span>{{i:arrow}}</button>
+      <button class="pillar-tab" role="tab" id="pt-3" aria-controls="pp-3" aria-selected="false" tabindex="-1" data-i="3"><span class="n">04</span><span class="tt"><b>Operations</b><small>Maintenance, vendors & inspections</small></span>{{i:arrow}}</button>
+      <button class="pillar-tab" role="tab" id="pt-4" aria-controls="pp-4" aria-selected="false" tabindex="-1" data-i="4"><span class="n">05</span><span class="tt"><b>Land & deals</b><small>Sales, leases & instalments</small></span>{{i:arrow}}</button>
+      <button class="pillar-tab" role="tab" id="pt-5" aria-controls="pp-5" aria-selected="false" tabindex="-1" data-i="5"><span class="n">06</span><span class="tt"><b>Communication</b><small>Chat, messages & notifications</small></span>{{i:arrow}}</button>
+      <button class="pillar-tab" role="tab" id="pt-6" aria-controls="pp-6" aria-selected="false" tabindex="-1" data-i="6"><span class="n">07</span><span class="tt"><b>Insights</b><small>Reports, audit log & access</small></span>{{i:arrow}}</button>
+      </div>
+      <div class="pillar-stage">
+      <article class="pillar-panel on" role="tabpanel" id="pp-0" aria-labelledby="pt-0">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:building}}</div><span class="tag">Pillar 01 / 07</span></div>
+          <h3>Portfolio</h3>
+          <p>Properties, buildings and units with status, structure and assignments to the right managers — the foundation everything else links to.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Multi-building properties</li><li>{{i:check}}Unit-level status</li><li>{{i:check}}Owner linking</li><li>{{i:check}}Manager assignments</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/features">Explore portfolio tools {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Unit availability</div><div class="units"><i></i><i class="o"></i><i class="o"></i><i class="r"></i><i class="o"></i><i></i><i class="o"></i><i class="o"></i><i class="o"></i><i class="r"></i><i></i><i class="o"></i></div><div class="viz-legend"><span><b class="d0"></b>Available</span><span><b class="d1"></b>Occupied</span><span><b class="d2"></b>Reserved</span></div></div>
+      </article>
+      <article class="pillar-panel" role="tabpanel" id="pp-1" aria-labelledby="pt-1" aria-hidden="true">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:file}}</div><span class="tag">Pillar 02 / 07</span></div>
+          <h3>Leasing</h3>
+          <p>Tenants, leases and rentals managed end to end — with a self-service portal so tenants see their own lease and payments.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Full lease lifecycle</li><li>{{i:check}}Tenant self-service</li><li>{{i:check}}Document storage</li><li>{{i:check}}Renewal tracking</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/solutions">See the tenant portal {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Lease status</div><div class="vrow"><span>Unit 4B · Renewal</span><span class="chip ok">Signed</span></div><div class="vrow"><span>Unit 2A · Expiring soon</span><span class="chip warn">30 days</span></div><div class="vrow"><span>Unit 7C · New lease</span><span class="chip">Draft</span></div><div class="vrow"><span>Unit 1D · Active</span><span class="chip ok">Active</span></div></div>
+      </article>
+      <article class="pillar-panel" role="tabpanel" id="pp-2" aria-labelledby="pt-2" aria-hidden="true">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:wallet}}</div><span class="tag">Pillar 03 / 07</span></div>
+          <h3>Billing</h3>
+          <p>Invoices, payments, refunds and expenses with idempotent safeguards against double-charging and an approval flow for costs.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Cash, bank, card, mobile money</li><li>{{i:check}}Refund reversal</li><li>{{i:check}}Expense approvals</li><li>{{i:check}}Overdue tracking</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/features">Explore billing {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Rent collected</div><div class="vbars"><i style="--h:38%"></i><i style="--h:55%"></i><i style="--h:46%"></i><i style="--h:72%"></i><i style="--h:64%"></i><i style="--h:90%"></i></div><div class="vrow"><span>INV-0231</span><span class="chip ok">Paid</span></div><div class="vrow"><span>INV-0232</span><span class="chip warn">Due in 3 days</span></div></div>
+      </article>
+      <article class="pillar-panel" role="tabpanel" id="pp-3" aria-labelledby="pt-3" aria-hidden="true">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:wrench}}</div><span class="tag">Pillar 04 / 07</span></div>
+          <h3>Operations</h3>
+          <p>Maintenance requests, work orders, vendors and inspections in a single workflow, with priorities and a full history.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Priority levels</li><li>{{i:check}}Vendor directory</li><li>{{i:check}}Move-in / move-out inspections</li><li>{{i:check}}Completion records</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/features">Explore operations {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Work orders</div><div class="kan"><div><b>Open</b><span>Leaking tap</span><span>Gate lock</span></div><div><b>In progress</b><span>Roof repair</span></div><div><b>Done</b><span>Paint 3A</span><span>AC service</span></div></div></div>
+      </article>
+      <article class="pillar-panel" role="tabpanel" id="pp-4" aria-labelledby="pt-4" aria-hidden="true">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:land}}</div><span class="tag">Pillar 05 / 07</span></div>
+          <h3>Land & deals</h3>
+          <p>List land and run rent, lease and purchase deals, attach agents and manage instalment schedules for buyers paying over time.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Instalment plans</li><li>{{i:check}}Agent assignment</li><li>{{i:check}}Deal pipeline</li><li>{{i:check}}Land documents</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/solutions">See agent tools {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Instalment plan</div><div class="vrow"><span>Plot 14 · Buyer A</span><span>75%</span></div><div class="prog"><i style="--w:75%"></i></div><div class="vrow"><span>Plot 22 · Buyer B</span><span>40%</span></div><div class="prog"><i style="--w:40%"></i></div><div class="vrow"><span>Plot 31 · Buyer C</span><span>90%</span></div><div class="prog"><i style="--w:90%"></i></div></div>
+      </article>
+      <article class="pillar-panel" role="tabpanel" id="pp-5" aria-labelledby="pt-5" aria-hidden="true">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:chat}}</div><span class="tag">Pillar 06 / 07</span></div>
+          <h3>Communication</h3>
+          <p>Chat rooms, tenant messaging and in-app notifications keep owners, managers, agents and tenants in the loop.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Real-time chat</li><li>{{i:check}}File attachments</li><li>{{i:check}}Tenant inbox</li><li>{{i:check}}In-app notifications</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/features">Explore communication {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Tenant chat</div><div class="vchat"><span>Is unit 4B still available?</span><span class="me">Yes — viewing at 3pm?</span><span>Perfect, thank you!</span></div></div>
+      </article>
+      <article class="pillar-panel" role="tabpanel" id="pp-6" aria-labelledby="pt-6" aria-hidden="true">
+        <div class="pp-text">
+          <div class="pp-top"><div class="ico">{{i:chart}}</div><span class="tag">Pillar 07 / 07</span></div>
+          <h3>Insights</h3>
+          <p>Occupancy, rent-collection, maintenance and financial reports — plus a complete audit trail and role-based access control.</p>
+          <ul class="ticks pp-ticks"><li>{{i:check}}Financial summary</li><li>{{i:check}}Audit log & remarks</li><li>{{i:check}}Role-based permissions</li><li>{{i:check}}MFA for staff</li></ul>
+          <a class="btn btn-ghost btn-sm" href="/security">See how it is secured {{i:arrow}}</a>
+        </div>
+        <div class="pp-viz" aria-hidden="true"><div class="viz-title">Occupancy</div><div class="vring"><svg viewBox="0 0 96 96" aria-hidden="true"><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40"/></svg><b>92%</b></div><div class="vrow"><span>Audit entries today</span><span class="chip">128</span></div></div>
+      </article>
+      </div>
     </div>
   </div>
 </section>

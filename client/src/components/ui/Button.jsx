@@ -12,9 +12,9 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: 'h-8 px-3 text-sm gap-1.5',
-  md: 'h-10 px-4 text-sm gap-2',
-  lg: 'h-11 px-5 text-base gap-2',
+  sm: 'min-h-[2rem] px-3 py-1 text-sm gap-1.5',
+  md: 'min-h-[2.5rem] px-4 py-1.5 text-sm gap-2',
+  lg: 'min-h-[2.75rem] px-5 py-2 text-base gap-2',
 };
 
 // The activity mark: three dots in a wave, with a light line sweeping along
@@ -70,7 +70,7 @@ export const Button = forwardRef(function Button(
       aria-busy={busy || undefined}
       onClick={handleClick}
       className={clsx(
-        'relative inline-flex items-center justify-center rounded-lg font-medium transition-colors',
+        'relative inline-flex max-w-full items-center justify-center rounded-lg text-center font-medium leading-tight transition-colors',
         'disabled:cursor-not-allowed disabled:opacity-70',
         VARIANTS[variant],
         SIZES[size],
@@ -79,7 +79,7 @@ export const Button = forwardRef(function Button(
       {...props}
     >
       {busy && <ActivityIndicator />}
-      <span className={clsx('inline-flex items-center', SIZES[size].match(/gap-\S+/)?.[0], busy && 'invisible')}>
+      <span className={clsx('inline-flex min-w-0 items-center justify-center whitespace-normal break-words', SIZES[size].match(/gap-\S+/)?.[0], busy && 'invisible')}>
         {children}
       </span>
     </button>

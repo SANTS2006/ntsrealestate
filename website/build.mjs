@@ -101,8 +101,7 @@ const header = (active) => `
     </nav>
     <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">{{i:menu}}</button>
   </div>
-</header>
-<div class="scroll-progress" aria-hidden="true"><i></i></div>`;
+</header>`;
 
 const footer = () => `
 <footer class="site-footer">

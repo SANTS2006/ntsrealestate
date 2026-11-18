@@ -140,7 +140,7 @@ function PlatformShell() {
         </header>
 
         <main id="main-content" tabIndex={-1} className="custom-scrollbar min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+          <div className="w-full px-4 py-6 sm:px-6 sm:py-8">
             <ErrorBoundary resetKey={location.pathname}><Outlet /></ErrorBoundary>
           </div>
         </main>

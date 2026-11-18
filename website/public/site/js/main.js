@@ -21,7 +21,7 @@
     };
     addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.defaultPrevented) return;
-      if (e.target.closest('textarea, select, [data-native-scroll], .hs-track')) return;
+      if (e.target.closest('textarea, select, [data-native-scroll]')) return;
       e.preventDefault();
       if (!raf) { target = current = scrollY; }
       target = clamp(target + e.deltaY * (e.deltaMode === 1 ? 34 : 1), 0, max());
@@ -137,18 +137,7 @@
     f.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); f.classList.toggle('on'); } });
   });
 
-  /* ───────── Pinned horizontal scroll showcase ───────── */
-  const hsEls = $$('.hs');
-  const layoutHS = () => hsEls.forEach((hs) => {
-    const track = $('.hs-track', hs);
-    if (innerWidth <= 900) { hs.style.height = ''; track.style.transform = ''; return; }
-    const dist = Math.max(0, track.scrollWidth - innerWidth);
-    hs._dist = dist;
-    hs.style.height = dist + innerHeight + 'px';
-  });
-
   /* ───────── Scroll-linked effects (one rAF-coalesced handler) ───────── */
-  const bar = $('.scroll-progress i');
   const toTop = $('#to-top');
   const parallax = $$('[data-parallax]');
   const dash = $('[data-scroll3d]');
@@ -158,8 +147,7 @@
 
   function frame() {
     ticking = false;
-    const y = scrollY, h = document.documentElement.scrollHeight - innerHeight;
-    if (bar) bar.style.transform = `scaleX(${h > 0 ? y / h : 0})`;
+    const y = scrollY;
     header?.classList.toggle('scrolled', y > 30);
     header?.classList.toggle('hide', y > 520 && y > lastY + 2 && !links.classList.contains('open'));
     if (y < lastY - 2) header?.classList.remove('hide');
@@ -173,13 +161,6 @@
       el.style.transform = `translate3d(0, ${(r.top + r.height / 2 - innerHeight / 2) * -k}px, 0)`;
     });
 
-    hsEls.forEach((hs) => {
-      if (innerWidth <= 900 || !hs._dist) return;
-      const r = hs.getBoundingClientRect();
-      const p = clamp(-r.top / (hs.offsetHeight - innerHeight));
-      $('.hs-track', hs).style.transform = `translate3d(${-p * hs._dist}px,0,0)`;
-      const b = $('.hs-bar i', hs); if (b) b.style.transform = `scaleX(${p})`;
-    });
 
     if (dash && !reduce) {
       const r = dash.getBoundingClientRect();
@@ -198,10 +179,8 @@
   }
   function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
   addEventListener('scroll', onScroll, { passive: true });
-  addEventListener('resize', () => { layoutHS(); onScroll(); });
-  addEventListener('load', () => { layoutHS(); onScroll(); });
-  document.fonts?.ready.then(() => { layoutHS(); onScroll(); });
-  layoutHS(); onScroll();
+  addEventListener('resize', onScroll);
+  onScroll();
   toTop?.addEventListener('click', () => smoothTo(0));
 
   // 3D layer legend, built from the layers' own labels
@@ -234,6 +213,35 @@
     $('.wa-bubble-x', bubble).addEventListener('click', dismiss);
     bubble.addEventListener('click', (e) => { if (e.target.closest('a')) dismiss(); });
   }
+
+  /* ───────── Pillar explorer: tabs + autoplay (pauses on hover/focus, off-screen and after a manual pick) ───────── */
+  $$('[data-pillars]').forEach((root) => {
+    const tabs = $$('.pillar-tab', root), panels = $$('.pillar-panel', root);
+    let current = 0;
+    const show = (n, focus) => {
+      current = (n + tabs.length) % tabs.length;
+      tabs.forEach((t, i) => { const on = i === current; t.classList.toggle('on', on); t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
+      panels.forEach((p, i) => { const on = i === current; p.classList.toggle('on', on); on ? p.removeAttribute('aria-hidden') : p.setAttribute('aria-hidden', 'true'); });
+      if (focus) tabs[current].focus();
+      const t = tabs[current];
+      if (innerWidth <= 900) t.parentElement.scrollTo({ left: t.offsetLeft - 16, behavior: reduce ? 'auto' : 'smooth' });
+    };
+    const stopAuto = () => root.classList.remove('autoplay', 'paused');
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => { stopAuto(); show(i); });
+      t.addEventListener('keydown', (e) => {
+        const k = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+        if (k) { e.preventDefault(); stopAuto(); show(current + k, true); }
+      });
+      t.addEventListener('animationend', (e) => { if (e.pseudoElement === '::after' && root.classList.contains('autoplay')) show(current + 1); });
+    });
+    if (reduce) return;
+    root.classList.add('autoplay', 'paused');
+    new IntersectionObserver(([e]) => root.classList.toggle('paused', !e.isIntersecting), { threshold: 0.35 }).observe(root);
+    const wrap = $('.pillars-wrap', root);
+    wrap.addEventListener('pointerenter', () => root.classList.add('paused'));
+    wrap.addEventListener('pointerleave', () => { if (root.classList.contains('autoplay')) root.classList.remove('paused'); });
+  });
 
   /* ───────── Contact + demo forms → platform administrators (API) ───────── */
   $$('form[data-api-form]').forEach((form) => {
