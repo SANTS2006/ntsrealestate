@@ -21,7 +21,7 @@
     };
     addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.defaultPrevented) return;
-      if (e.target.closest('textarea, select, [data-native-scroll]')) return;
+      if (e.target.closest('textarea, select, [data-native-scroll], .nav-links')) return;
       e.preventDefault();
       if (!raf) { target = current = scrollY; }
       target = clamp(target + e.deltaY * (e.deltaMode === 1 ? 34 : 1), 0, max());
@@ -141,7 +141,6 @@
   const toTop = $('#to-top');
   const parallax = $$('[data-parallax]');
   const dash = $('[data-scroll3d]');
-  const iso = $('[data-iso]');
   let lastY = scrollY, ticking = false, mx = 0, my = 0;
   addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - 0.5; my = e.clientY / innerHeight - 0.5; if (dash) onScroll(); }, { passive: true });
 
@@ -169,12 +168,6 @@
       dash.style.setProperty('--ry', -4 + c * -16 + mx * 10 + 'deg');
       dash.style.setProperty('--rz', c * 2 + 'deg');
     }
-    if (iso && !reduce) {
-      const r = iso.getBoundingClientRect();
-      const c = clamp((r.top + r.height / 2 - innerHeight / 2) / innerHeight, -1, 1);
-      iso.style.setProperty('--spread', 14 + (1 - Math.abs(c)) * 40 + 'px');
-      iso.style.setProperty('--spin', c * 40 + 'deg');
-    }
     window.__scrollFx?.(y);
   }
   function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }
@@ -182,13 +175,6 @@
   addEventListener('resize', onScroll);
   onScroll();
   toTop?.addEventListener('click', () => smoothTo(0));
-
-  // 3D layer legend, built from the layers' own labels
-  if (iso) {
-    const ul = document.createElement('ul'); ul.className = 'iso-legend';
-    $$('.iso-layer span', iso).reverse().forEach((s) => { const li = document.createElement('li'); li.textContent = s.textContent; ul.append(li); });
-    iso.append(ul);
-  }
 
   /* ───────── Feature filter tabs ───────── */
   const tabs = $$('.tab[data-filter]');
@@ -201,18 +187,6 @@
       if (show) { c.style.opacity = 0; c.style.transform = 'translateY(18px)'; setTimeout(() => { c.style.opacity = ''; c.style.transform = ''; }, 30 + i * 18); }
     });
   }));
-
-  /* ───────── WhatsApp: floating chat bubble ───────── */
-  const bubble = $('#wa-bubble');
-  if (bubble) {
-    const key = 'nts-wa-bubble';
-    if (!safe(() => sessionStorage.getItem(key))) {
-      setTimeout(() => { bubble.hidden = false; }, 7000);
-    }
-    const dismiss = () => { bubble.hidden = true; safe(() => sessionStorage.setItem(key, '1')); };
-    $('.wa-bubble-x', bubble).addEventListener('click', dismiss);
-    bubble.addEventListener('click', (e) => { if (e.target.closest('a')) dismiss(); });
-  }
 
   /* ───────── Pillar explorer: tabs + autoplay (pauses on hover/focus, off-screen and after a manual pick) ───────── */
   $$('[data-pillars]').forEach((root) => {

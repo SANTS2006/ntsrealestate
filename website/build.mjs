@@ -80,10 +80,10 @@ const ICONS = {
 // ───────────────────────── Navigation ─────────────────────────
 // [key, label, path]. Paths are clean URLs ("/features"); the server resolves them to the built .html files.
 const NAV = [
+  ['home', 'Home', '/'],
   ['features', 'Features', '/features'],
   ['solutions', 'Solutions', '/solutions'],
   ['how', 'How it works', '/how-it-works'],
-  ['security', 'Security', '/security'],
   ['pricing', 'Pricing', '/pricing'],
   ['about', 'About', '/about'],
   ['contact', 'Contact', '/contact'],
@@ -132,7 +132,7 @@ const footer = () => `
       </nav>
       <nav aria-label="Company">
         <h3>Company</h3>
-        <a href="/about">About</a><a href="/security">Security</a><a href="/faq">FAQ</a><a href="/contact">Contact us</a><a href="/demo">Request a demo</a>
+        <a href="/about">About</a><a href="/faq">FAQ</a><a href="/contact">Contact us</a><a href="/demo">Request a demo</a>
       </nav>
       <nav aria-label="Legal">
         <h3>Legal</h3>
@@ -150,12 +150,6 @@ const footer = () => `
   <span class="wa-tip">Chat with us on WhatsApp</span>
   <span class="wa-ico">{{i:whatsapp}}</span>
 </a>
-<div class="wa-bubble" id="wa-bubble" hidden>
-  <button class="wa-bubble-x" aria-label="Dismiss" type="button">{{i:close}}</button>
-  <strong>${CONFIG.company}</strong>
-  <p>👋 Questions about the platform? Message us on WhatsApp — we reply fast.</p>
-  <a class="btn btn-wa btn-sm" href="${waUrl()}" target="_blank" rel="noopener" data-wa>{{i:whatsapp}} Start chat</a>
-</div>
 <button class="to-top" id="to-top" aria-label="Back to top">{{i:up}}</button>`;
 
 // ───────────────────────── SEO helpers ─────────────────────────
