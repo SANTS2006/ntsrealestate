@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Building2, ShieldCheck, TrendingUp, MessageCircle, SearchX } from 'lucide-react';
+import { useLocation, useParams } from 'react-router-dom';
+import { Building2, ShieldCheck, TrendingUp, MessageCircle } from 'lucide-react';
 import { Logo } from '../components/ui/Logo.jsx';
+import { MainNotFound } from '../pages/NotFoundPage.jsx';
 import { ThemeToggle } from '../components/ui/ThemeToggle.jsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { useBranding } from '../contexts/BrandingContext.jsx';
@@ -32,6 +33,7 @@ const HIGHLIGHTS = [
 // someone actually tries to sign in (see auth.service.js#login).
 export function AuthLayout({ title, description, children, footer }) {
   const { orgSlug } = useParams();
+  const { pathname } = useLocation();
   const { branding, applyTenantBranding } = useBranding();
   const [status, setStatus] = useState('loading'); // loading | ready | notFound
 
@@ -54,13 +56,11 @@ export function AuthLayout({ title, description, children, footer }) {
 
   if (status === 'notFound') {
     return (
-      <div className="flex h-[calc(100vh-var(--maintenance-offset,0px))] flex-col items-center justify-center gap-3 bg-slate-50 px-4 text-center dark:bg-slate-950">
-        <SearchX size={40} className="text-slate-300 dark:text-slate-700" aria-hidden="true" />
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Organization not found</h1>
-        <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
-          There's no organization at this address. Double-check the link, or contact whoever gave it to you.
-        </p>
-      </div>
+      <MainNotFound
+        path={pathname}
+        title="Company not found"
+        message="There's no company at this address. Double-check the link, or contact whoever gave it to you."
+      />
     );
   }
 

@@ -10,6 +10,7 @@ import { DashboardLayout } from './layouts/DashboardLayout.jsx';
 import { LoadingState } from './components/ui/Spinner.jsx';
 import { WebsiteRedirect } from './components/WebsiteRedirect.jsx';
 import { BareAuthRedirect } from './components/auth/BareAuthRedirect.jsx';
+import NotFoundPage from './pages/NotFoundPage.jsx';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RentPage from './pages/auth/RentPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
@@ -163,7 +164,8 @@ export default function App() {
               </Route>
             </Route>
 
-            <Route path="*" element={<WebsiteRedirect />} />
+            {/* Unknown addresses: the main system's, the platform console's or the company's own 404. */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </PlatformAdminProvider>
       </BrandingProvider>
